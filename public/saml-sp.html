@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAML SP-Initiated SSO — AG Nova Federation Tester</title>
+  <meta name="description" content="SAML 2.0 SP-Initiated SSO tester. Generate an AuthnRequest, inspect the deflated XML, and see the decoded SAMLResponse assertion.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AG Nova Federation Tester</span>
+    </a>
+  </nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">SAML</a><span class="breadcrumb-sep">›</span>
+      <span>SP-Initiated SSO</span>
+    </div>
+    <div class="page-header">
+      <h1>SAML SP-Initiated SSO</h1>
+      <p>The Service Provider generates an AuthnRequest and redirects the user to the IdP. The IdP authenticates and POSTs a SAMLResponse back to the ACS URL.</p>
+    </div>
+
+    <div class="banner banner-warning">
+      <span class="banner-icon">⚠️</span>
+      <span><strong>Public URL required.</strong> The IdP must POST the SAMLResponse to your ACS endpoint. This flow requires deployment to Vercel (or a public tunnel). It will not work on localhost.</span>
+    </div>
+
+    <!-- Step 1: Config -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">1</div><div class="step-title">Configuration</div></div>
+      <p class="step-description">Enter your IdP's Single Sign-On URL and configure the SP Entity ID. The ACS URL is pre-filled with the Vercel deployment URL.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>IdP SSO URL</label>
+          <input type="text" id="idp_sso_url" placeholder="https://your-idp.com/sso/saml">
+        </div>
+        <div class="form-group">
+          <label>SP Entity ID</label>
+          <input type="text" id="entity_id" placeholder="https://your-app.vercel.app/saml/metadata">
+        </div>
+        <div class="form-group">
+          <label>ACS URL (where IdP posts back)</label>
+          <input type="text" id="acs_url" placeholder="https://your-app.vercel.app/saml/acs">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="prefillFromOrigin()">Auto-fill from current domain</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Generate AuthnRequest -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">2</div><div class="step-title">Generate AuthnRequest XML</div></div>
+      <p class="step-description">The SP builds a SAML <code class="code">&lt;AuthnRequest&gt;</code> XML document. It is then <strong>DEFLATE-compressed</strong> and <strong>base64-encoded</strong> per the HTTP Redirect binding spec (RFC 7519). No signing — educational mode.</p>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="doGenerateRequest()">Generate AuthnRequest</button>
+      </div>
+      <div style="margin-top:1rem;">
+        <p style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:0.4rem;">Decoded AuthnRequest XML</p>
+        <div class="request-window">
+          <div class="request-window-header">XML · Decoded (before compression)</div>
+          <pre class="request-window-body" id="authnXmlDisplay"><span style="color:#475569;font-style:italic;">// Click Generate to build the XML</span></pre>
+        </div>
+      </div>
+      <div style="margin-top:0.75rem;">
+        <p style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:0.4rem;">Encoded SAMLRequest (DEFLATE + base64url)</p>
+        <div class="request-window">
+          <div class="request-window-header">URL PARAM · SAMLRequest value</div>
+          <pre class="request-window-body" id="encodedDisplay" style="word-break:break-all;"><span style="color:#475569;font-style:italic;">// Will appear after generation</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Redirect URL -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">3</div><div class="step-title">Build the Redirect URL</div></div>
+      <p class="step-description">The full URL sent to the IdP combines the SSO URL with the encoded <code class="code">SAMLRequest</code> query parameter and a <code class="code">RelayState</code>.</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect to IdP</div>
+        <pre class="request-window-body" id="redirectUrlDisplay"><span style="color:#475569;font-style:italic;">// Will appear after generation</span></pre>
+      </div>
+      <div class="actions" style="margin-top:1rem;">
+        <button class="btn btn-primary" id="redirectBtn" onclick="doRedirect()" disabled>Send to IdP →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: ACS result note -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">4</div><div class="step-title">SAMLResponse at ACS</div></div>
+      <p class="step-description">After authentication, the IdP will HTTP-POST the <code class="code">SAMLResponse</code> to your ACS URL (<code class="code">/saml/acs</code>). The backend decodes and displays the full assertion on a new page.</p>
+      <div class="banner banner-info" style="margin-bottom:0;">
+        <span class="banner-icon">ℹ️</span>
+        <span>ACS Endpoint: <code class="code" id="acsUrlNote">/saml/acs</code> — register this with your IdP as the Assertion Consumer Service URL.</span>
+      </div>
+      <div class="actions" style="margin-top:1rem;">
+        <a href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View SP Metadata XML ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script>
+    const FIELDS = ['idp_sso_url', 'entity_id', 'acs_url'];
+    const PREFIX = 'saml_sp';
+    let redirectUrl = null;
+
+    window.addEventListener('load', () => {
+      loadConfig(FIELDS, PREFIX);
+      attachAutoSave(FIELDS, PREFIX, () => {});
+      updateAcsNote();
+    });
+
+    function updateAcsNote() {
+      const acs = document.getElementById('acs_url').value;
+      if (acs) document.getElementById('acsUrlNote').textContent = acs;
+    }
+
+    function prefillFromOrigin() {
+      const base = window.location.origin;
+      document.getElementById('entity_id').value = base + '/saml/metadata';
+      document.getElementById('acs_url').value = base + '/saml/acs';
+      saveConfig(FIELDS, PREFIX);
+      updateAcsNote();
+    }
+
+    async function doGenerateRequest() {
+      const idpSsoUrl = document.getElementById('idp_sso_url').value;
+      const entityId = document.getElementById('entity_id').value;
+      const acsUrl = document.getElementById('acs_url').value;
+      if (!idpSsoUrl || !entityId || !acsUrl) { alert('Please fill in all three fields.'); return; }
+      saveConfig(FIELDS, PREFIX);
+      updateAcsNote();
+
+      document.getElementById('authnXmlDisplay').innerHTML = '<span style="color:#475569;font-style:italic;">Generating…</span>';
+      try {
+        const resp = await fetch('/api/saml-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idp_sso_url: idpSsoUrl, entity_id: entityId, acs_url: acsUrl })
+        });
+        const data = await resp.json();
+        if (data.error) { alert('Error: ' + data.error); return; }
+        document.getElementById('authnXmlDisplay').textContent = data.decodedXml;
+        document.getElementById('encodedDisplay').textContent = data.samlRequest;
+        document.getElementById('redirectUrlDisplay').textContent = data.redirectUrl;
+        redirectUrl = data.redirectUrl;
+        document.getElementById('redirectBtn').disabled = false;
+      } catch (e) {
+        alert('Failed to call /api/saml-request: ' + e.message);
+      }
+    }
+
+    function doRedirect() {
+      if (!redirectUrl) { alert('Generate the AuthnRequest first.'); return; }
+      window.location.href = redirectUrl;
+    }
+  </script>
+</body>
+</html>

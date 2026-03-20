@@ -1,0 +1,8 @@
+{
+  "name": "fed-tester",
+  "version": "1.0.0",
+  "description": "Federation SAML/OIDC Educational Tester",
+  "dependencies": {
+    "fast-xml-parser": "^4.3.6"
+  }
+}

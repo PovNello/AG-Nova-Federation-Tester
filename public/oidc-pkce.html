@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth Code + PKCE — AG Nova Federation Tester</title>
+  <meta name="description" content="Step-by-step OIDC Authorization Code + PKCE flow tester. See raw HTTP requests and decoded JWT tokens.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AG Nova Federation Tester</span>
+    </a>
+  </nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">OIDC</a><span class="breadcrumb-sep">›</span>
+      <span>Auth Code + PKCE</span>
+    </div>
+    <div class="page-header">
+      <h1>Authorization Code + PKCE</h1>
+      <p>Proof Key for Code Exchange — a browser-safe flow with no client secret. Watch every raw HTTP call and cryptographic step.</p>
+    </div>
+
+    <div class="banner banner-info">
+      <span class="banner-icon">🌐</span>
+      <span>This flow runs entirely in the browser. No backend is involved — the PKCE challenge is generated using the <strong>Web Crypto API</strong>.</span>
+    </div>
+
+    <!-- Step 0: Config -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">0</div>
+        <div class="step-title">Configuration</div>
+      </div>
+      <p class="step-description">Enter your OIDC provider details. Values are saved to sessionStorage and update all displays live.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Authorization Endpoint URL</label>
+          <input type="text" id="auth_endpoint" placeholder="https://login.example.com/oauth2/authorize">
+        </div>
+        <div class="form-group">
+          <label>Token Endpoint URL</label>
+          <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="client_id" placeholder="your-client-id">
+        </div>
+        <div class="form-group">
+          <label>Redirect URI</label>
+          <input type="text" id="redirect_uri" value="">
+        </div>
+        <div class="form-group">
+          <label>Scopes</label>
+          <input type="text" id="scopes" value="openid profile email">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Step 1: PKCE -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Generate PKCE Keys</div>
+      </div>
+      <p class="step-description">Generates a cryptographically random <strong>code_verifier</strong> (32 random bytes as hex), then computes the <strong>code_challenge</strong> as SHA-256(code_verifier) base64url-encoded.</p>
+      <button class="btn btn-primary" onclick="doGeneratePkce()">Generate Keys</button>
+      <div class="request-window" style="margin-top:0.75rem;">
+        <div class="request-window-header">LOCAL CRYPTO · Web Crypto API (SHA-256)</div>
+        <pre class="request-window-body" id="pkceDisplay"><span style="color:#475569;font-style:italic;">// Click Generate Keys to run window.crypto.subtle.digest('SHA-256', ...)</span></pre>
+      </div>
+    </div>
+
+    <!-- Step 2: Authorization Request -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Authorization Request (Browser Redirect)</div>
+      </div>
+      <p class="step-description">The browser is redirected to the IdP's authorization endpoint with the PKCE <code class="code">code_challenge</code>. The IdP authenticates the user and redirects back with an authorization code.</p>
+      <div id="authRequestDisplay" class="request-window">
+        <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
+        <pre class="request-window-body" id="authUrlDisplay"><span style="color:#475569;font-style:italic;">// Fill in config above to preview the Authorization URL</span></pre>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="doLogin()">Redirect to IdP →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Auth Code Received -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Authorization Code Received</div>
+      </div>
+      <p class="step-description">After the user authenticates, the IdP redirects back to the <code class="code">redirect_uri</code> with a short-lived <code class="code">code</code> in the query string.</p>
+      <div class="request-window">
+        <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
+        <pre class="request-window-body" id="codeDisplay"><span style="color:#475569;font-style:italic;">// Awaiting redirect from IdP…</span></pre>
+      </div>
+    </div>
+
+    <!-- Step 4: Token Exchange -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Token Exchange (PKCE Verify)</div>
+      </div>
+      <p class="step-description">The browser POSTs directly to the token endpoint sending the <code class="code">code</code> and <code class="code">code_verifier</code>. The IdP verifies that SHA-256(verifier) == original challenge, then returns tokens.</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint · Fetch API</div>
+        <pre class="request-window-body" id="tokenReqDisplay"><span style="color:#475569;font-style:italic;">// Waiting for step 3…</span></pre>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="doExchangeToken()">Execute Token Exchange</button>
+      </div>
+      <div style="margin-top:1rem;">
+        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">IdP Token Response</p>
+        <pre class="result-box result-pending" id="tokenResponse">// Awaiting token exchange…</pre>
+      </div>
+    </div>
+
+    <!-- Step 5: Decoded JWT -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">5</div>
+        <div class="step-title">Decoded id_token (JWT)</div>
+      </div>
+      <p class="step-description">The <code class="code">id_token</code> is a signed JWT. Its three parts (header, payload, signature) are base64url-encoded and dot-separated. The payload contains the user's identity claims.</p>
+      <div id="jwtDisplay"><span style="color:var(--text-faint);font-style:italic;font-size:0.875rem;">// JWT will appear here after token exchange</span></div>
+    </div>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script>
+    const FIELDS = ['auth_endpoint', 'token_endpoint', 'client_id', 'redirect_uri', 'scopes'];
+    const PREFIX = 'pkce';
+
+    window.addEventListener('load', () => {
+      document.getElementById('redirect_uri').value = window.location.origin + '/oidc-pkce.html';
+      loadConfig(FIELDS, PREFIX);
+      attachAutoSave(FIELDS, PREFIX, updateAuthDisplay);
+      checkForCode();
+      updateAuthDisplay();
+    });
+
+    function updateAuthDisplay() {
+      const endpoint = document.getElementById('auth_endpoint').value || '<authorization_endpoint>';
+      const clientId = document.getElementById('client_id').value || '<client_id>';
+      const redirectUri = document.getElementById('redirect_uri').value || '<redirect_uri>';
+      const scopes = document.getElementById('scopes').value || '<scopes>';
+      const challenge = sessionStorage.getItem('pkce:challenge') || '<code_challenge — generate first>';
+
+      const params = [
+        `?response_type=code`,
+        `&client_id=${clientId}`,
+        `&redirect_uri=${encodeURIComponent(redirectUri)}`,
+        `&scope=${encodeURIComponent(scopes)}`,
+        `&code_challenge=${challenge}`,
+        `&code_challenge_method=S256`,
+        `&state=${sessionStorage.getItem('pkce:state') || '<state>'}`,
+      ];
+      document.getElementById('authUrlDisplay').textContent = `GET ${endpoint}\n${params.join('\n')}`;
+
+      const verifier = sessionStorage.getItem('pkce:verifier');
+      const code = getUrlParam('code');
+      if (code) {
+        document.getElementById('tokenReqDisplay').textContent =
+          `POST ${document.getElementById('token_endpoint').value || '<token_endpoint>'}\nContent-Type: application/x-www-form-urlencoded\n\n` +
+          `grant_type=authorization_code\n&code=${code.substring(0,30)}...[truncated]\n` +
+          `&redirect_uri=${encodeURIComponent(redirectUri)}\n&client_id=${clientId}\n` +
+          `&code_verifier=${verifier || '<verifier>'}`;
+      }
+    }
+
+    async function doGeneratePkce() {
+      saveConfig(FIELDS, PREFIX);
+      const { verifier, challenge } = await generatePkce();
+      const state = generateRandomString(16);
+      sessionStorage.setItem('pkce:verifier', verifier);
+      sessionStorage.setItem('pkce:challenge', challenge);
+      sessionStorage.setItem('pkce:state', state);
+      document.getElementById('pkceDisplay').textContent =
+        `code_verifier  (random 32 bytes as hex):\n${verifier}\n\n` +
+        `code_challenge (SHA-256, base64url):\n${challenge}\n\n` +
+        `state          (random, CSRF protection):\n${state}`;
+      updateAuthDisplay();
+    }
+
+    function checkForCode() {
+      const code = getUrlParam('code');
+      const state = getUrlParam('state');
+      const error = getUrlParam('error');
+      if (error) {
+        document.getElementById('codeDisplay').innerHTML =
+          `<span style="color:#f87171;">Error: ${escHtml(error)}\nerror_description: ${escHtml(getUrlParam('error_description') || '')}</span>`;
+        return;
+      }
+      if (code) {
+        document.getElementById('codeDisplay').textContent =
+          `code:  ${code}\nstate: ${state || '(none)'}`;
+        updateAuthDisplay();
+      }
+    }
+
+    function doLogin() {
+      saveConfig(FIELDS, PREFIX);
+      const challenge = sessionStorage.getItem('pkce:challenge');
+      const state = sessionStorage.getItem('pkce:state');
+      const clientId = document.getElementById('client_id').value;
+      const endpoint = document.getElementById('auth_endpoint').value;
+      if (!endpoint) { alert('Please enter the Authorization Endpoint URL.'); return; }
+      if (!clientId) { alert('Please enter Client ID.'); return; }
+      if (!challenge) { alert('Please generate PKCE keys first (Step 1).'); return; }
+      const redirectUri = document.getElementById('redirect_uri').value;
+      const scopes = document.getElementById('scopes').value;
+      const url = `${endpoint}?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${challenge}&code_challenge_method=S256&state=${state}`;
+      window.location.href = url;
+    }
+
+    async function doExchangeToken() {
+      const code = getUrlParam('code');
+      const verifier = sessionStorage.getItem('pkce:verifier');
+      const endpoint = document.getElementById('token_endpoint').value;
+      const clientId = document.getElementById('client_id').value;
+      const redirectUri = document.getElementById('redirect_uri').value;
+
+      if (!code) { alert('No authorization code found in URL. Complete Step 2 first.'); return; }
+      if (!verifier) { alert('No code_verifier found. It may have been cleared. Please restart the flow.'); return; }
+      if (!endpoint) { alert('Please enter the Token Endpoint URL.'); return; }
+
+      showPending('tokenResponse', 'Sending POST request…');
+
+      const body = new URLSearchParams({
+        grant_type: 'authorization_code', code,
+        redirect_uri: redirectUri, client_id: clientId,
+        code_verifier: verifier
+      });
+
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString()
+        });
+        const data = await resp.json();
+        showSuccess('tokenResponse', JSON.stringify(data, null, 2));
+        if (data.id_token) renderJwt('jwtDisplay', data.id_token);
+        else if (data.access_token) renderJwt('jwtDisplay', data.access_token);
+      } catch (e) {
+        showError('tokenResponse', 'Network error: ' + e.message);
+      }
+    }
+
+    function clearAll() {
+      sessionStorage.clear();
+      window.location.href = window.location.origin + '/oidc-pkce.html';
+    }
+  </script>
+</body>
+</html>

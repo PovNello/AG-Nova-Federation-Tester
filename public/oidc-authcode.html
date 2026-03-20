@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth Code + Secret — AG Nova Federation Tester</title>
+  <meta name="description" content="OIDC Authorization Code flow with client secret. Token exchange is proxied through the backend so the secret never has to be stored client-side.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AG Nova Federation Tester</span>
+    </a>
+  </nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">OIDC</a><span class="breadcrumb-sep">›</span>
+      <span>Auth Code + Secret</span>
+    </div>
+    <div class="page-header">
+      <h1>Authorization Code + Client Secret</h1>
+      <p>Confidential client flow — the token exchange uses a client secret. The secret is sent to our backend proxy per-request and never stored.</p>
+    </div>
+
+    <div class="banner banner-info">
+      <span class="banner-icon">⚙️</span>
+      <span>The <strong>token exchange</strong> (Step 4) is proxied through <code class="code">/api/token-exchange</code> so the client secret is kept out of browser headers/logs. The exact request the backend makes is returned and shown below.</span>
+    </div>
+
+    <!-- Step 0: Config -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">0</div><div class="step-title">Configuration</div></div>
+      <p class="step-description">Enter your IdP details. The client secret is used only for the token exchange and is never stored server-side.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Authorization Endpoint URL</label>
+          <input type="text" id="auth_endpoint" placeholder="https://login.example.com/oauth2/authorize">
+        </div>
+        <div class="form-group">
+          <label>Token Endpoint URL</label>
+          <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="client_id" placeholder="your-client-id">
+        </div>
+        <div class="form-group">
+          <label>Client Secret</label>
+          <input type="password" id="client_secret" placeholder="your-client-secret">
+        </div>
+        <div class="form-group">
+          <label>Redirect URI</label>
+          <input type="text" id="redirect_uri" value="">
+        </div>
+        <div class="form-group">
+          <label>Scopes</label>
+          <input type="text" id="scopes" value="openid profile email">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Authorization Request -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">1</div><div class="step-title">Authorization Request (Browser Redirect)</div></div>
+      <p class="step-description">The browser redirects to the IdP's authorization endpoint. Unlike PKCE, there is no <code class="code">code_challenge</code> — the client secret is the proof of identity at token exchange time.</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
+        <pre class="request-window-body" id="authUrlDisplay"><span style="color:#475569;font-style:italic;">// Fill in config above</span></pre>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="doLogin()">Redirect to IdP →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Code received -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">2</div><div class="step-title">Authorization Code Received</div></div>
+      <p class="step-description">The IdP redirects back with a short-lived <code class="code">code</code> in the URL query string after user authentication.</p>
+      <div class="request-window">
+        <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
+        <pre class="request-window-body" id="codeDisplay"><span style="color:#475569;font-style:italic;">// Awaiting redirect from IdP…</span></pre>
+      </div>
+    </div>
+
+    <!-- Step 3: Token Exchange via backend -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">3</div><div class="step-title">Token Exchange (via Backend Proxy)</div></div>
+      <p class="step-description">Sends the code + client secret to <code class="code">/api/token-exchange</code>. The backend makes the actual <code class="code">POST</code> to the IdP, and returns both the request it sent and the IdP's response.</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-POST">POST</span>/api/token-exchange → (proxied to IdP)</div>
+        <pre class="request-window-body" id="tokenReqDisplay"><span style="color:#475569;font-style:italic;">// Preview will appear after IdP redirect</span></pre>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="doExchange()">Execute Token Exchange</button>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">Exact HTTP Request sent by Backend to IdP</p>
+        <pre class="result-box result-pending" id="backendRequest">// Will appear after exchange</pre>
+      </div>
+      <div style="margin-top:1rem;">
+        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">IdP Token Response</p>
+        <pre class="result-box result-pending" id="tokenResponse">// Awaiting token exchange…</pre>
+      </div>
+    </div>
+
+    <!-- Step 4: JWT -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">4</div><div class="step-title">Decoded id_token (JWT)</div></div>
+      <p class="step-description">The <code class="code">id_token</code> is a signed JWT with three base64url-encoded parts separated by dots.</p>
+      <div id="jwtDisplay"><span style="color:var(--text-faint);font-style:italic;font-size:0.875rem;">// JWT will appear here after token exchange</span></div>
+    </div>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script>
+    const FIELDS = ['auth_endpoint', 'token_endpoint', 'client_id', 'client_secret', 'redirect_uri', 'scopes'];
+    const PREFIX = 'authcode';
+    const SAVE_FIELDS = ['auth_endpoint', 'token_endpoint', 'client_id', 'redirect_uri', 'scopes']; // don't save secret
+
+    window.addEventListener('load', () => {
+      document.getElementById('redirect_uri').value = window.location.origin + '/oidc-authcode.html';
+      loadConfig(SAVE_FIELDS, PREFIX);
+      attachAutoSave(SAVE_FIELDS, PREFIX, updateDisplay);
+      checkForCode();
+      updateDisplay();
+    });
+
+    function updateDisplay() {
+      const endpoint = document.getElementById('auth_endpoint').value || '<authorization_endpoint>';
+      const clientId = document.getElementById('client_id').value || '<client_id>';
+      const redirectUri = document.getElementById('redirect_uri').value || '<redirect_uri>';
+      const scopes = document.getElementById('scopes').value || '<scopes>';
+      const state = sessionStorage.getItem(PREFIX + ':state') || '<state>';
+      document.getElementById('authUrlDisplay').textContent =
+        `GET ${endpoint}\n?response_type=code\n&client_id=${clientId}\n` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}\n&scope=${encodeURIComponent(scopes)}\n&state=${state}`;
+
+      const code = getUrlParam('code');
+      if (code) {
+        document.getElementById('tokenReqDisplay').textContent =
+          `POST /api/token-exchange\nContent-Type: application/json\n\n` +
+          `{\n  "token_endpoint": "${document.getElementById('token_endpoint').value || '<token_endpoint>'}",\n` +
+          `  "code": "${code.substring(0,20)}...",\n  "client_id": "${clientId}",\n` +
+          `  "client_secret": "***",\n  "redirect_uri": "${redirectUri}"\n}`;
+      }
+    }
+
+    function checkForCode() {
+      const code = getUrlParam('code');
+      const error = getUrlParam('error');
+      if (error) {
+        document.getElementById('codeDisplay').innerHTML =
+          `<span style="color:#f87171;">Error: ${escHtml(error)}\n${escHtml(getUrlParam('error_description') || '')}</span>`;
+        return;
+      }
+      if (code) {
+        document.getElementById('codeDisplay').textContent =
+          `code:  ${code}\nstate: ${getUrlParam('state') || '(none)'}`;
+        updateDisplay();
+      }
+    }
+
+    function doLogin() {
+      saveConfig(SAVE_FIELDS, PREFIX);
+      const endpoint = document.getElementById('auth_endpoint').value;
+      const clientId = document.getElementById('client_id').value;
+      const redirectUri = document.getElementById('redirect_uri').value;
+      const scopes = document.getElementById('scopes').value;
+      if (!endpoint || !clientId) { alert('Please fill in Authorization Endpoint and Client ID.'); return; }
+      const state = generateRandomString(16);
+      sessionStorage.setItem(PREFIX + ':state', state);
+      window.location.href =
+        `${endpoint}?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}`;
+    }
+
+    async function doExchange() {
+      const code = getUrlParam('code');
+      const tokenEndpoint = document.getElementById('token_endpoint').value;
+      const clientId = document.getElementById('client_id').value;
+      const clientSecret = document.getElementById('client_secret').value;
+      const redirectUri = document.getElementById('redirect_uri').value;
+      if (!code) { alert('No authorization code in URL. Complete the redirect first.'); return; }
+      if (!tokenEndpoint || !clientId || !clientSecret) { alert('Please fill in Token Endpoint, Client ID, and Client Secret.'); return; }
+
+      showPending('tokenResponse', 'Calling /api/token-exchange…');
+      showPending('backendRequest', 'Waiting for backend…');
+
+      try {
+        const resp = await fetch('/api/token-exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token_endpoint: tokenEndpoint, code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri })
+        });
+        const result = await resp.json();
+        if (result.requestSent) {
+          document.getElementById('backendRequest').className = 'result-box result-success';
+          document.getElementById('backendRequest').textContent =
+            `${result.requestSent.method} ${result.requestSent.url}\n` +
+            Object.entries(result.requestSent.headers).map(([k,v]) => `${k}: ${v}`).join('\n') +
+            '\n\n' + result.requestSent.body.split('&').join('\n&');
+        }
+        if (result.error) { showError('tokenResponse', result.error); return; }
+        showSuccess('tokenResponse', JSON.stringify(result.responseBody, null, 2));
+        const data = result.responseBody;
+        if (data && data.id_token) renderJwt('jwtDisplay', data.id_token);
+        else if (data && data.access_token) renderJwt('jwtDisplay', data.access_token);
+      } catch (e) { showError('tokenResponse', 'Fetch error: ' + e.message); }
+    }
+
+    function clearAll() {
+      sessionStorage.clear();
+      window.location.href = window.location.origin + '/oidc-authcode.html';
+    }
+  </script>
+</body>
+</html>

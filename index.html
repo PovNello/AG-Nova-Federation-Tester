@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>OIDC PKCE Educational Tester</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 2rem auto;
+            max-width: 850px;
+            line-height: 1.5;
+            background: #f4f4f5;
+        }
+
+        .step {
+            border: 1px solid #d4d4d8;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            background: #005A9E;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        button:hover {
+            background: #004578;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            overflow-x: auto;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 0.85rem;
+        }
+
+        .highlight {
+            color: #d63384;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .request-window {
+            border-left: 4px solid #10b981;
+            background: #1e1e1e;
+            margin-top: 1rem;
+        }
+
+        .request-header {
+            background: #2d2d2d;
+            color: #fff;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+
+        .request-body {
+            margin: 0;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            min-height: 60px;
+        }
+
+        .placeholder {
+            color: #888;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>OIDC PKCE Flow Tester</h1>
+    <p>Watch the raw cryptographic generation and HTTP requests happen in real-time. The URIs update automatically as
+        you type.</p>
+
+    <div class="step">
+        <h2>Configuration</h2>
+        <p style="font-size: 0.85rem; color: #666;">Values are cached in sessionStorage and update the endpoints
+            instantly.</p>
+        <div class="form-group">
+            <label>Tenant ID (or 'common'):</label>
+            <input type="text" id="tenantId" value="common">
+        </div>
+        <div class="form-group">
+            <label>Client ID:</label>
+            <input type="text" id="clientId" placeholder="e.g., 12345678-abcd-1234-abcd-1234567890ab">
+        </div>
+        <div class="form-group">
+            <label>Redirect URI (Must match Entra ID exactly):</label>
+            <input type="text" id="redirectUri" value="http://localhost:3000/">
+        </div>
+        <div class="form-group">
+            <label>Scopes:</label>
+            <input type="text" id="scopes" value="openid profile email offline_access">
+        </div>
+        <button onclick="clearCache()" style="background: #dc2626; font-size: 0.8rem; padding: 0.3rem 0.6rem;">Clear
+            Cached Data</button>
+    </div>
+
+    <div class="step">
+        <h2>Step 1: Generate PKCE Keys</h2>
+        <button onclick="generatePKCE()">Generate Keys</button>
+        <div class="request-window">
+            <div class="request-header">LOCAL BROWSER CRYPTO RESULT</div>
+            <pre class="request-body" id="pkceDisplay"></pre>
+        </div>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Get Authorization Code</h2>
+        <button onclick="login()">Redirect to this URL</button>
+        <div class="request-window">
+            <div class="request-header">HTTP GET (Browser Redirect Endpoint)</div>
+            <pre class="request-body" id="authRequestDisplay"></pre>
+        </div>
+        <p style="margin-top: 1rem;"><strong>Auth Code Received from Entra ID:</strong></p>
+        <pre id="codeDisplay"
+            style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;">[No code yet. Awaiting redirect...]</pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 3: Token Exchange</h2>
+        <button onclick="exchangeToken()">Execute POST Request</button>
+        <div class="request-window">
+            <div class="request-header">HTTP POST (Fetch API Endpoint & Payload)</div>
+            <pre class="request-body" id="tokenRequestDisplay"></pre>
+        </div>
+        <p style="margin-top: 1rem;"><strong>Entra ID Response:</strong></p>
+        <pre id="tokenDisplay"
+            style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;">[No response yet]</pre>
+    </div>
+
+    <script>
+        const configFields = ['tenantId', 'clientId', 'redirectUri', 'scopes'];
+
+        // Core UI updating function - runs on every input change and page load
+        function updateLiveDisplays() {
+            const tenant = document.getElementById('tenantId').value || '<tenant>';
+            const clientId = document.getElementById('clientId').value || '<client_id>';
+            const redirectUri = document.getElementById('redirectUri').value || '<redirect_uri>';
+            const scopes = document.getElementById('scopes').value || '<scopes>';
+
+            const challenge = sessionStorage.getItem('code_challenge') || '<missing_code_challenge>';
+            const verifier = sessionStorage.getItem('code_verifier') || '<missing_code_verifier>';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const authCode = urlParams.get('code') || '<missing_auth_code_from_url>';
+
+            // Update Step 1 Display
+            if (sessionStorage.getItem('code_verifier')) {
+                document.getElementById('pkceDisplay').innerText =
+                    `code_verifier: ${verifier}\ncode_challenge (SHA-256): ${challenge}`;
+            } else {
+                document.getElementById('pkceDisplay').innerHTML = '<span class="placeholder">// Click Generate Keys above</span>';
+            }
+
+            // Update Step 2 Display (Authorization URL)
+            const baseUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`;
+            document.getElementById('authRequestDisplay').innerText =
+                `GET ${baseUrl}\n` +
+                `?client_id=${clientId}\n` +
+                `&response_type=code\n` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}\n` +
+                `&response_mode=query\n` +
+                `&scope=${encodeURIComponent(scopes)}\n` +
+                `&code_challenge=${challenge}\n` +
+                `&code_challenge_method=S256`;
+
+            // Update Step 2 Auth Code Display if it exists
+            if (urlParams.get('code')) {
+                document.getElementById('codeDisplay').innerText = authCode;
+            }
+
+            // Update Step 3 Display (Token Endpoint)
+            const tokenEndpoint = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+            document.getElementById('tokenRequestDisplay').innerText =
+                `POST ${tokenEndpoint}\n` +
+                `Content-Type: application/x-www-form-urlencoded\n\n` +
+                `client_id=${clientId}\n` +
+                `&grant_type=authorization_code\n` +
+                `&code=${authCode.length > 50 ? authCode.substring(0, 30) + '...[truncated]' : authCode}\n` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}\n` +
+                `&code_verifier=${verifier}`;
+        }
+
+        // Save inputs to cache as user types, then update displays
+        function handleInput() {
+            configFields.forEach(id => sessionStorage.setItem(id, document.getElementById(id).value));
+            updateLiveDisplays();
+        }
+
+        // Attach listeners
+        configFields.forEach(id => {
+            document.getElementById(id).addEventListener('input', handleInput);
+        });
+
+        // Initialize on load
+        window.onload = function () {
+            configFields.forEach(id => {
+                const saved = sessionStorage.getItem(id);
+                if (saved) document.getElementById(id).value = saved;
+            });
+            updateLiveDisplays();
+        };
+
+        function clearCache() {
+            sessionStorage.clear();
+            window.location.href = window.location.origin + window.location.pathname; // Reload without query params
+        }
+
+        function base64urlencode(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+            return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        function generateRandomString(length) {
+            const array = new Uint8Array(length);
+            window.crypto.getRandomValues(array);
+            return Array.from(array, dec => ('0' + dec.toString(16)).substr(-2)).join('');
+        }
+
+        async function generatePKCE() {
+            handleInput(); // Save state
+            const verifier = generateRandomString(32);
+            sessionStorage.setItem('code_verifier', verifier);
+
+            const encoder = new TextEncoder();
+            const data = encoder.encode(verifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+
+            sessionStorage.setItem('code_challenge', base64urlencode(digest));
+            updateLiveDisplays();
+        }
+
+        function login() {
+            handleInput();
+            const clientId = document.getElementById('clientId').value;
+            const challenge = sessionStorage.getItem('code_challenge');
+
+            if (!clientId || clientId === '<client_id>') { alert("Please enter a Client ID."); return; }
+            if (!challenge || challenge === '<missing_code_challenge>') { alert("Please generate PKCE keys first."); return; }
+
+            // Extract the exact URL from the display to ensure what the user sees is what is executed
+            const urlText = document.getElementById('authRequestDisplay').innerText.replace('GET ', '').replace(/\n/g, '');
+            window.location.href = urlText;
+        }
+
+        async function exchangeToken() {
+            const tenant = document.getElementById('tenantId').value;
+            const clientId = document.getElementById('clientId').value;
+            const redirectUri = document.getElementById('redirectUri').value;
+            const verifier = sessionStorage.getItem('code_verifier');
+            const code = new URLSearchParams(window.location.search).get('code');
+
+            if (!code || !verifier || !clientId) {
+                alert("Missing Auth Code, Verifier, or Client ID.");
+                return;
+            }
+
+            const tokenEndpoint = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+            const bodyParams = new URLSearchParams({
+                client_id: clientId,
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: redirectUri,
+                code_verifier: verifier
+            });
+
+            try {
+                const response = await fetch(tokenEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: bodyParams
+                });
+
+                const data = await response.json();
+                document.getElementById('tokenDisplay').innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('tokenDisplay').innerText = "Network Error: " + error.message;
+            }
+        }
+    </script>
+</body>
+
+</html>

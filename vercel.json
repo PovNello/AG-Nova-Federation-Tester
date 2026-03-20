@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "public": true,
+  "outputDirectory": "public",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/saml/acs", "dest": "/api/saml-acs" },
+    { "src": "/saml/metadata", "dest": "/api/saml-metadata" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ]
+}

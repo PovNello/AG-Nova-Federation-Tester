@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Credentials — AG Nova Federation Tester</title>
+  <meta name="description" content="OIDC Client Credentials grant tester. Machine-to-machine flow executed server-side — see the raw POST and decoded access token.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AG Nova Federation Tester</span>
+    </a>
+  </nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">OIDC</a><span class="breadcrumb-sep">›</span>
+      <span>Client Credentials</span>
+    </div>
+    <div class="page-header">
+      <h1>Client Credentials Grant</h1>
+      <p>Machine-to-machine flow — no user involved. The client authenticates directly with its credentials to obtain an access token.</p>
+    </div>
+
+    <div class="banner banner-info">
+      <span class="banner-icon">⚙️</span>
+      <span>This entire flow runs server-side via <code class="code">/api/client-credentials</code>. The backend makes the token request and returns the exact HTTP request it sent plus the IdP response.</span>
+    </div>
+
+    <!-- Step 1: Config -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">1</div><div class="step-title">Configuration</div></div>
+      <p class="step-description">No redirect URI or user interaction needed. Just the token endpoint and client credentials.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Token Endpoint URL</label>
+          <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="client_id" placeholder="your-client-id">
+        </div>
+        <div class="form-group">
+          <label>Client Secret</label>
+          <input type="password" id="client_secret" placeholder="your-client-secret">
+        </div>
+        <div class="form-group">
+          <label>Scope (optional)</label>
+          <input type="text" id="scope" placeholder="api://your-app/.default">
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Request preview -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">2</div><div class="step-title">Token Request Preview</div></div>
+      <p class="step-description">This is the HTTP POST that will be sent to the token endpoint. With <strong>client credentials</strong>, the client proves its identity using its <code class="code">client_secret</code> — no user authorization step needed.</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint</div>
+        <pre class="request-window-body" id="reqPreview"><span style="color:#475569;font-style:italic;">// Fill in config above to preview</span></pre>
+      </div>
+      <div class="actions" style="margin-top: 1rem;">
+        <button class="btn btn-primary" onclick="doClientCredentials()">Execute Request</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Backend request -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">3</div><div class="step-title">Exact Request Sent by Backend</div></div>
+      <p class="step-description">The backend confirms what it actually sent, so you can verify it matches the preview exactly.</p>
+      <pre class="result-box result-pending" id="backendRequest">// Will appear after executing the request</pre>
+    </div>
+
+    <!-- Step 4: Response -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">4</div><div class="step-title">IdP Token Response</div></div>
+      <p class="step-description">The IdP returns an <code class="code">access_token</code>. Unlike user flows, there is typically no <code class="code">id_token</code> in client credentials responses.</p>
+      <pre class="result-box result-pending" id="tokenResponse">// Awaiting request…</pre>
+    </div>
+
+    <!-- Step 5: Decoded JWT -->
+    <div class="step-card">
+      <div class="step-header"><div class="step-number">5</div><div class="step-title">Decoded Access Token (JWT)</div></div>
+      <p class="step-description">The access token is typically a JWT. Its payload contains claims about the client application (not a user) such as <code class="code">sub</code>, <code class="code">aud</code>, <code class="code">iss</code>, and <code class="code">roles</code>.</p>
+      <div id="jwtDisplay"><span style="color:var(--text-faint);font-style:italic;font-size:0.875rem;">// JWT will appear here after token exchange</span></div>
+    </div>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script>
+    const FIELDS = ['token_endpoint', 'client_id', 'scope'];
+    const PREFIX = 'clientcreds';
+
+    window.addEventListener('load', () => {
+      loadConfig(FIELDS, PREFIX);
+      attachAutoSave(FIELDS, PREFIX, updatePreview);
+      updatePreview();
+    });
+
+    function updatePreview() {
+      saveConfig(FIELDS, PREFIX);
+      const endpoint = document.getElementById('token_endpoint').value || '<token_endpoint>';
+      const clientId = document.getElementById('client_id').value || '<client_id>';
+      const scope = document.getElementById('scope').value;
+      let body = `grant_type=client_credentials\n&client_id=${clientId}\n&client_secret=***`;
+      if (scope) body += `\n&scope=${encodeURIComponent(scope)}`;
+      document.getElementById('reqPreview').textContent =
+        `POST ${endpoint}\nContent-Type: application/x-www-form-urlencoded\n\n${body}`;
+    }
+
+    async function doClientCredentials() {
+      const endpoint = document.getElementById('token_endpoint').value;
+      const clientId = document.getElementById('client_id').value;
+      const clientSecret = document.getElementById('client_secret').value;
+      const scope = document.getElementById('scope').value;
+      if (!endpoint || !clientId || !clientSecret) {
+        alert('Please fill in Token Endpoint, Client ID, and Client Secret.'); return;
+      }
+      showPending('tokenResponse', 'Calling /api/client-credentials…');
+      showPending('backendRequest', 'Waiting for backend…');
+      try {
+        const resp = await fetch('/api/client-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token_endpoint: endpoint, client_id: clientId, client_secret: clientSecret, scope })
+        });
+        const result = await resp.json();
+        if (result.requestSent) {
+          document.getElementById('backendRequest').className = 'result-box result-success';
+          document.getElementById('backendRequest').textContent =
+            `${result.requestSent.method} ${result.requestSent.url}\n` +
+            Object.entries(result.requestSent.headers).map(([k,v]) => `${k}: ${v}`).join('\n') +
+            '\n\n' + result.requestSent.body.split('&').join('\n&');
+        }
+        if (result.error) { showError('tokenResponse', result.error); return; }
+        showSuccess('tokenResponse', JSON.stringify(result.responseBody, null, 2));
+        const data = result.responseBody;
+        if (data && data.access_token) renderJwt('jwtDisplay', data.access_token);
+      } catch (e) { showError('tokenResponse', 'Fetch error: ' + e.message); }
+    }
+  </script>
+</body>
+</html>

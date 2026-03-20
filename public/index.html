@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AG Nova Federation Tester</title>
+  <meta name="description" content="An educational, provider-agnostic tester for SAML and OIDC federation flows. Inspect raw HTTP requests, tokens, and assertions step by step.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .hero { padding: 3.5rem 1.5rem 1rem; text-align: center; }
+    .hero-badge { display: inline-block; background: var(--accent-light); color: var(--accent);
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 0.3rem 0.8rem; border-radius: 999px; margin-bottom: 1rem; }
+    .hero h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.035em; line-height: 1.2; margin-bottom: 0.75rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1rem; color: var(--text-muted); max-width: 540px; margin: 0 auto 2.5rem; line-height: 1.65; }
+    .how-it-works { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 3rem; }
+    .how-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); }
+    .how-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .sections-container { max-width: 920px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .protocol-section { margin-bottom: 3rem; }
+    .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem; }
+    .protocol-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+      border-radius: 10px; font-size: 1.2rem; flex-shrink: 0; }
+    .icon-oidc { background: #ede9fe; }
+    .icon-saml { background: #fef3c7; }
+    .section-info h2 { font-size: 1.2rem; font-weight: 700; }
+    .section-info p { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AG Nova Federation Tester</span>
+    </a>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">Educational Tool</div>
+    <h1>AG Nova <span>Federation Tester</span></h1>
+    <p>Inspect raw SAML &amp; OIDC flows step by step — see every HTTP request, decoded token, and XML assertion as they happen.</p>
+    <div class="how-it-works">
+      <div class="how-item"><div class="how-dot"></div>Provider-agnostic</div>
+      <div class="how-item"><div class="how-dot"></div>No auth frameworks</div>
+      <div class="how-item"><div class="how-dot"></div>Every HTTP call exposed</div>
+    </div>
+  </section>
+
+  <div class="sections-container">
+    <!-- OIDC Section -->
+    <div class="protocol-section">
+      <div class="section-header">
+        <div class="protocol-icon icon-oidc">🔑</div>
+        <div class="section-info">
+          <h2>OpenID Connect (OIDC)</h2>
+          <p>Token-based identity flows built on top of OAuth 2.0</p>
+        </div>
+      </div>
+      <div class="tile-grid">
+        <a href="/oidc-pkce.html" class="tile">
+          <div class="tile-icon">🔒</div>
+          <div class="tile-title">Auth Code + PKCE</div>
+          <div class="tile-desc">Authorization Code flow with Proof Key for Code Exchange. No client secret needed — designed for public clients.</div>
+          <span class="tile-badge badge-browser">🌐 Browser only</span>
+        </a>
+        <a href="/oidc-authcode.html" class="tile">
+          <div class="tile-icon">🗝️</div>
+          <div class="tile-title">Auth Code + Secret</div>
+          <div class="tile-desc">Authorization Code flow with a confidential client secret. Token exchange proxied through backend.</div>
+          <span class="tile-badge badge-backend">⚙️ Backend-assisted</span>
+        </a>
+        <a href="/oidc-clientcreds.html" class="tile">
+          <div class="tile-icon">🤖</div>
+          <div class="tile-title">Client Credentials</div>
+          <div class="tile-desc">Machine-to-machine grant. No user involved — the client authenticates directly for an access token.</div>
+          <span class="tile-badge badge-backend">⚙️ Backend-assisted</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- SAML Section -->
+    <div class="protocol-section">
+      <div class="section-header">
+        <div class="protocol-icon icon-saml">📄</div>
+        <div class="section-info">
+          <h2>SAML 2.0</h2>
+          <p>XML-based federation — see the raw AuthnRequest and decoded SAMLResponse assertion</p>
+        </div>
+      </div>
+      <div class="banner banner-warning" style="margin-bottom:1.2rem;">
+        <span class="banner-icon">⚠️</span>
+        <span>SAML flows require a <strong>publicly reachable ACS URL</strong>. Deploy to Vercel first — they will not work on localhost.</span>
+      </div>
+      <div class="tile-grid">
+        <a href="/saml-sp.html" class="tile">
+          <div class="tile-icon">➡️</div>
+          <div class="tile-title">SP-Initiated SSO</div>
+          <div class="tile-desc">The Service Provider generates an AuthnRequest and redirects the user to the IdP to authenticate.</div>
+          <span class="tile-badge badge-saml">📄 SAML 2.0</span>
+        </a>
+        <a href="/saml-idp.html" class="tile">
+          <div class="tile-icon">⬅️</div>
+          <div class="tile-title">IdP-Initiated SSO</div>
+          <div class="tile-desc">The Identity Provider initiates the session and POSTs a SAMLResponse directly to the ACS endpoint.</div>
+          <span class="tile-badge badge-saml">📄 SAML 2.0</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
