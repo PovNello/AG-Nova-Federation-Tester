@@ -13,7 +13,7 @@ Unlike standard client libraries, it **does not hide** intermediate steps or raw
 ## 📂 Project Structure
 
 ```text
-OIDC Tester/
+AG Nova Federation Tester/
 ├── public/                       # Static Frontend (Modern, Flat/Square UI)
 │   ├── index.html                # Homepage with OIDC & SAML Grid
 │   ├── style.css                 # Brand Design System (Orange/Teal/Cream)

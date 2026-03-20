@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAML IdP-Initiated SSO — AG Nova Federation Tester</title>
-  <meta name="description" content="SAML 2.0 IdP-Initiated SSO — understand how the IdP posts a SAMLResponse without a prior AuthnRequest.">
+  <meta name="description"
+    content="SAML 2.0 IdP-Initiated SSO — understand how the IdP posts a SAMLResponse without a prior AuthnRequest.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
   <nav class="navbar">
     <a href="/" class="nav-brand">
@@ -24,33 +27,38 @@
     </div>
     <div class="page-header">
       <h1>SAML IdP-Initiated SSO</h1>
-      <p>The Identity Provider initiates the session directly — no AuthnRequest from the SP. The IdP POSTs a SAMLResponse straight to the ACS endpoint.</p>
-    </div>
-
-    <div class="banner banner-warning">
-      <span class="banner-icon">⚠️</span>
-      <span><strong>Public URL required.</strong> The IdP must be able to POST to your ACS URL. Deploy to Vercel first — this will not work on localhost.</span>
+      <p>The Identity Provider initiates the session directly — no AuthnRequest from the SP. The IdP POSTs a
+        SAMLResponse straight to the ACS endpoint.</p>
     </div>
 
     <!-- Flow Explanation -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">1</div><div class="step-title">How IdP-Initiated SSO Works</div></div>
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">How IdP-Initiated SSO Works</div>
+      </div>
       <p class="step-description">Unlike SP-Initiated, there is <strong>no AuthnRequest</strong>. The flow is:</p>
       <ol style="font-size:0.875rem;color:var(--text-muted);line-height:2;padding-left:1.25rem;">
         <li>User is already authenticated at the IdP (e.g. their Okta portal).</li>
         <li>User clicks an app tile in the IdP portal.</li>
-        <li>The IdP builds a <code class="code">SAMLResponse</code> assertion and HTTP-POSTs it to the SP's ACS URL.</li>
+        <li>The IdP builds a <code class="code">SAMLResponse</code> assertion and HTTP-POSTs it to the SP's ACS URL.
+        </li>
         <li>The SP (this app's <code class="code">/saml/acs</code> endpoint) decodes and validates the response.</li>
       </ol>
       <div class="banner banner-info" style="margin-top:1rem;margin-bottom:0;">
         <span class="banner-icon">ℹ️</span>
-        <span>Because there is no prior <code class="code">AuthnRequest</code>, IdP-Initiated SSO has no <code class="code">InResponseTo</code> attribute to validate. This makes it less secure but widely used in enterprise portals.</span>
+        <span>Because there is no prior <code class="code">AuthnRequest</code>, IdP-Initiated SSO has no <code
+            class="code">InResponseTo</code> attribute to validate. This makes it less secure but widely used in
+          enterprise portals.</span>
       </div>
     </div>
 
     <!-- ACS Registration -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">2</div><div class="step-title">Register This App with Your IdP</div></div>
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Register This App with Your IdP</div>
+      </div>
       <p class="step-description">Configure the following values in your IdP's SAML application settings:</p>
       <div class="form-grid">
         <div class="form-group">
@@ -63,15 +71,20 @@
         </div>
       </div>
       <div class="actions">
-        <a id="metadataLink" href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View SP Metadata XML ↗</a>
+        <a id="metadataLink" href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View SP Metadata XML
+          ↗</a>
         <button class="btn btn-secondary btn-sm" onclick="copyAcs()">Copy ACS URL</button>
       </div>
     </div>
 
     <!-- IdP POST diagram -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">3</div><div class="step-title">What the IdP Will POST to the ACS</div></div>
-      <p class="step-description">The IdP sends an HTTP POST with a <code class="code">SAMLResponse</code> form field containing a base64-encoded, gzip-compressed SAML XML assertion.</p>
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">What the IdP Will POST to the ACS</div>
+      </div>
+      <p class="step-description">The IdP sends an HTTP POST with a <code class="code">SAMLResponse</code> form field
+        containing a base64-encoded, gzip-compressed SAML XML assertion.</p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>IdP → ACS URL</div>
         <pre class="request-window-body" id="postExample"></pre>
@@ -80,8 +93,12 @@
 
     <!-- ACS result -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">4</div><div class="step-title">ACS Decodes and Displays the Assertion</div></div>
-      <p class="step-description">When the IdP POSTs to <code class="code">/saml/acs</code>, the backend decodes the base64 SAMLResponse, parses the XML, extracts the NameID and attributes, and renders a result page showing:</p>
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">ACS Decodes and Displays the Assertion</div>
+      </div>
+      <p class="step-description">When the IdP POSTs to <code class="code">/saml/acs</code>, the backend decodes the
+        base64 SAMLResponse, parses the XML, extracts the NameID and attributes, and renders a result page showing:</p>
       <ul style="font-size:0.875rem;color:var(--text-muted);line-height:2;padding-left:1.25rem;">
         <li>Authentication <strong>Status</strong> (Success / Failure)</li>
         <li><strong>NameID</strong> — the subject identifier (usually an email or user ID)</li>
@@ -114,6 +131,9 @@
     function copyAcs() {
       navigator.clipboard.writeText(document.getElementById('acs_url').value);
     }
-  </script>
+  <footer class="footer">
+    <p>&copy; 2026 AG Nova Industries</p>
+  </footer>
 </body>
+
 </html>
