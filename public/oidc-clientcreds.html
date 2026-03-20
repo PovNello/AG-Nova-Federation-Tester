@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Client Credentials — AG Nova Federation Tester</title>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')</script>
   <meta name="description" content="OIDC Client Credentials grant tester. Machine-to-machine flow executed server-side — see the raw POST and decoded access token.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
@@ -62,7 +63,7 @@
       <p class="step-description">This is the HTTP POST that will be sent to the token endpoint. With <strong>client credentials</strong>, the client proves its identity using its <code class="code">client_secret</code> — no user authorization step needed.</p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint</div>
-        <pre class="request-window-body" id="reqPreview"><span style="color:#475569;font-style:italic;">// Fill in config above to preview</span></pre>
+        <pre class="request-window-body" id="reqPreview"><span class="comment">// Fill in config above to preview</span></pre>
       </div>
       <div class="actions" style="margin-top: 1rem;">
         <button class="btn btn-primary" onclick="doClientCredentials()">Execute Request</button>
@@ -87,7 +88,7 @@
     <div class="step-card">
       <div class="step-header"><div class="step-number">5</div><div class="step-title">Decoded Access Token (JWT)</div></div>
       <p class="step-description">The access token is typically a JWT. Its payload contains claims about the client application (not a user) such as <code class="code">sub</code>, <code class="code">aud</code>, <code class="code">iss</code>, and <code class="code">roles</code>.</p>
-      <div id="jwtDisplay"><span style="color:var(--text-faint);font-style:italic;font-size:0.875rem;">// JWT will appear here after token exchange</span></div>
+      <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
     </div>
   </div>
 

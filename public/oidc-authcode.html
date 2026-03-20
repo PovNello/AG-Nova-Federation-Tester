@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Auth Code + Secret — AG Nova Federation Tester</title>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')</script>
   <meta name="description" content="OIDC Authorization Code flow with client secret. Token exchange is proxied through the backend so the secret never has to be stored client-side.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
@@ -73,7 +74,7 @@
       <p class="step-description">The browser redirects to the IdP's authorization endpoint. Unlike PKCE, there is no <code class="code">code_challenge</code> — the client secret is the proof of identity at token exchange time.</p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
-        <pre class="request-window-body" id="authUrlDisplay"><span style="color:#475569;font-style:italic;">// Fill in config above</span></pre>
+        <pre class="request-window-body" id="authUrlDisplay"><span class="comment">// Fill in config above</span></pre>
       </div>
       <div class="actions">
         <button class="btn btn-primary" onclick="doLogin()">Redirect to IdP →</button>
@@ -86,7 +87,7 @@
       <p class="step-description">The IdP redirects back with a short-lived <code class="code">code</code> in the URL query string after user authentication.</p>
       <div class="request-window">
         <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
-        <pre class="request-window-body" id="codeDisplay"><span style="color:#475569;font-style:italic;">// Awaiting redirect from IdP…</span></pre>
+        <pre class="request-window-body" id="codeDisplay"><span class="comment">// Awaiting redirect from IdP…</span></pre>
       </div>
     </div>
 
@@ -96,7 +97,7 @@
       <p class="step-description">Sends the code + client secret to <code class="code">/api/token-exchange</code>. The backend makes the actual <code class="code">POST</code> to the IdP, and returns both the request it sent and the IdP's response.</p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>/api/token-exchange → (proxied to IdP)</div>
-        <pre class="request-window-body" id="tokenReqDisplay"><span style="color:#475569;font-style:italic;">// Preview will appear after IdP redirect</span></pre>
+        <pre class="request-window-body" id="tokenReqDisplay"><span class="comment">// Preview will appear after IdP redirect</span></pre>
       </div>
       <div class="actions">
         <button class="btn btn-primary" onclick="doExchange()">Execute Token Exchange</button>
@@ -116,7 +117,7 @@
     <div class="step-card">
       <div class="step-header"><div class="step-number">4</div><div class="step-title">Decoded id_token (JWT)</div></div>
       <p class="step-description">The <code class="code">id_token</code> is a signed JWT with three base64url-encoded parts separated by dots.</p>
-      <div id="jwtDisplay"><span style="color:var(--text-faint);font-style:italic;font-size:0.875rem;">// JWT will appear here after token exchange</span></div>
+      <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
     </div>
   </div>
 
@@ -159,7 +160,7 @@
       const error = getUrlParam('error');
       if (error) {
         document.getElementById('codeDisplay').innerHTML =
-          `<span style="color:#f87171;">Error: ${escHtml(error)}\n${escHtml(getUrlParam('error_description') || '')}</span>`;
+          `<span class="text-danger">Error: ${escHtml(error)}\n${escHtml(getUrlParam('error_description') || '')}</span>`;
         return;
       }
       if (code) {

@@ -1,5 +1,4 @@
-/* AG Nova Federation Tester — Shared Design System */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -7,12 +6,49 @@
   /* AG Nova brand palette — extracted from logo */
   --accent: #df7b35;          /* warm orange — primary CTA */
   --accent-dark: #c26825;     /* darker orange on hover */
-  --accent-light: #fdf0e6;    /* pale orange tint */
   --teal: #7faea8;            /* sage teal — secondary */
   --teal-dark: #5f8f89;
-  --teal-light: #edf4f3;
-  --cream: #e8e3d8;           /* logo rocket body off-white */
+  --green: #5a9e7a;
+  --red: #c0392b;
 
+  /* DEFAULT: Dark Mode Values */
+  --bg: #0a0f19;              /* Deep dark blue */
+  --surface: #111827;         /* Darker slate */
+  --border: #1f2937;
+  --border-strong: #374151;
+  --text: #f9fafb;
+  --text-muted: #9ca3af;
+  --text-faint: #6b7280;
+
+  --accent-light: rgba(223, 123, 53, 0.15);
+  --teal-light: rgba(127, 174, 168, 0.15);
+  --cream: #1e293b;
+
+  --code-bg: #0b0f17;
+  --code-text: #f3f4f6;
+
+  --green-bg: rgba(90, 158, 122, 0.15);
+  --green-text: #34d399;
+  --green-border: rgba(52, 211, 153, 0.3);
+
+  --red-bg: rgba(192, 57, 43, 0.15);
+  --red-text: #f87171;
+  --red-border: rgba(248, 113, 113, 0.3);
+
+  --yellow-bg: rgba(245, 158, 11, 0.15);
+  --yellow-text: #fbbf24;
+  --yellow-border: rgba(245, 158, 11, 0.3);
+
+  /* Squareness: minimal radius */
+  --radius: 4px;
+  --radius-sm: 2px;
+
+  --shadow-sm: 0 2px 4px rgba(0,0,0,.3);
+  --shadow: 0 4px 12px rgba(0,0,0,.5);
+}
+
+/* ── Light Mode Overrides ── */
+html.light {
   --bg: #f5f5f4;
   --surface: #ffffff;
   --border: #e2e0db;
@@ -21,29 +57,31 @@
   --text-muted: #5c584f;
   --text-faint: #9c9890;
 
-  --green: #5a9e7a;
-  --green-bg: #e6f4ec;
-  --green-text: #1a5c35;
-  --red: #c0392b;
-  --red-bg: #fdecea;
-  --red-text: #7b1a12;
-  --yellow-bg: #fdf8e6;
-  --yellow-text: #7a5a10;
-  --yellow-border: #e8c84a;
+  --accent-light: #fdf0e6;
+  --teal-light: #edf4f3;
+  --cream: #e8e3d8;
 
   --code-bg: #16140f;
   --code-text: #e8e3d8;
 
-  /* Squareness: minimal radius */
-  --radius: 4px;
-  --radius-sm: 2px;
+  --green-bg: #e6f4ec;
+  --green-text: #1a5c35;
+  --green-border: #a8d5bc;
+
+  --red-bg: #fdecea;
+  --red-text: #7b1a12;
+  --red-border: #f5b8b2;
+
+  --yellow-bg: #fdf8e6;
+  --yellow-text: #7a5a10;
+  --yellow-border: #e8c84a;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
   --shadow: 0 2px 8px rgba(0,0,0,.09);
 }
 
 html { scroll-behavior: smooth; }
-body { display: flex; flex-direction: column; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+body { display: flex; flex-direction: column; font-family: 'IBM Plex Mono', monospace; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
 
 .sections-container, .page-container { flex: 1; }
 
@@ -68,6 +106,21 @@ body { display: flex; flex-direction: column; font-family: 'Inter', system-ui, s
 .nav-brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--text); }
 .nav-logo { height: 32px; width: auto; display: block; }
 .nav-title { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
+
+/* ── Theme Toggle Button ── */
+.btn-theme-toggle {
+  background: none; border: 1px solid var(--border); border-radius: 50%;
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  margin-left: auto; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.btn-theme-toggle:hover { border-color: var(--accent); background: rgba(223, 123, 53, 0.08); }
+
+.btn-theme-toggle svg {
+  width: 1.15rem; height: 1.15rem;
+  stroke: var(--accent); /* Brand orange provides energetic contrast */
+  transition: transform 0.2s ease;
+}
+.btn-theme-toggle:hover svg { transform: scale(1.1); }
 
 /* ── Page layout ── */
 .page-container { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
@@ -107,7 +160,7 @@ body { display: flex; flex-direction: column; font-family: 'Inter', system-ui, s
 .form-group input {
   width: 100%; padding: 0.55rem 0.75rem;
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-  font-family: 'Inter', monospace; font-size: 0.875rem; color: var(--text);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.875rem; color: var(--text);
   background: var(--bg); transition: border-color .12s ease, box-shadow .12s ease;
 }
 .form-group input:focus {
@@ -149,7 +202,7 @@ body { display: flex; flex-direction: column; font-family: 'Inter', system-ui, s
 .method-POST { background: #1a2e55; color: #7aabf5; }
 .request-window-body {
   background: var(--code-bg); color: var(--code-text);
-  padding: 0.85rem 1rem; font-family: 'Courier New', Courier, monospace;
+  padding: 0.85rem 1rem; font-family: 'IBM Plex Mono', monospace;
   font-size: 0.82rem; line-height: 1.65; overflow-x: auto;
   white-space: pre-wrap; word-break: break-all; margin: 0;
   max-height: 380px; overflow-y: auto;
@@ -158,12 +211,12 @@ body { display: flex; flex-direction: column; font-family: 'Inter', system-ui, s
 /* ── Result display ── */
 .result-box {
   border-radius: 0; padding: 0.85rem 1rem;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 0.82rem; margin-top: 0.75rem; white-space: pre-wrap; word-break: break-all;
 }
-.result-pending { background: #f5f5f4; color: var(--text-faint); font-style: italic; font-family: 'Inter', sans-serif; }
-.result-success { background: var(--green-bg); color: var(--green-text); border: 1px solid #a8d5bc; }
-.result-error { background: var(--red-bg); color: var(--red-text); border: 1px solid #f5b8b2; }
+.result-pending { background: var(--border); color: var(--text-faint); font-style: italic; font-family: 'IBM Plex Mono', monospace; }
+.result-success { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border); }
+.result-error { background: var(--red-bg); color: var(--red-text); border: 1px solid var(--red-border); }
 
 /* ── JWT viewer ── */
 .jwt-parts { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
@@ -219,8 +272,13 @@ body { display: flex; flex-direction: column; font-family: 'Inter', system-ui, s
 
 /* ── Misc ── */
 .divider { height: 1px; background: var(--border); margin: 2.5rem 0; }
-.code { font-family: 'Courier New', monospace; background: var(--cream); padding: 0.1em 0.35em;
+.code { font-family: 'IBM Plex Mono', monospace; background: var(--cream); padding: 0.1em 0.35em;
   border-radius: 0; font-size: 0.87em; color: var(--text); border: 1px solid var(--border-strong); }
 .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
-.monospace { font-family: 'Courier New', Courier, monospace; }
+.monospace { font-family: 'IBM Plex Mono', monospace; }
+
+/* utility classes to replace inline styles */
+.text-faint { color: var(--text-faint) !important; }
+.comment { color: var(--text-faint) !important; font-style: italic; }
+.text-danger { color: var(--red-text) !important; }
 

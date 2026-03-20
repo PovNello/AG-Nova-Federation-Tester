@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAML IdP-Initiated SSO — AG Nova Federation Tester</title>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')</script>
   <meta name="description"
     content="SAML 2.0 IdP-Initiated SSO — understand how the IdP posts a SAMLResponse without a prior AuthnRequest.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
@@ -131,6 +132,7 @@
     function copyAcs() {
       navigator.clipboard.writeText(document.getElementById('acs_url').value);
     }
+  </script>
   <footer class="footer">
     <p>&copy; 2026 AG Nova Industries</p>
   </footer>

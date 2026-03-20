@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAML SP-Initiated SSO — AG Nova Federation Tester</title>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')</script>
   <meta name="description"
     content="SAML 2.0 SP-Initiated SSO tester. Generate an AuthnRequest, inspect the deflated XML, and see the decoded SAMLResponse assertion.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
@@ -76,7 +77,7 @@
         <div class="request-window">
           <div class="request-window-header">XML · Decoded (before compression)</div>
           <pre class="request-window-body"
-            id="authnXmlDisplay"><span style="color:#475569;font-style:italic;">// Click Generate to build the XML</span></pre>
+            id="authnXmlDisplay"><span class="comment">// Click Generate to build the XML</span></pre>
         </div>
       </div>
       <div style="margin-top:0.75rem;">
@@ -85,7 +86,7 @@
         <div class="request-window">
           <div class="request-window-header">URL PARAM · SAMLRequest value</div>
           <pre class="request-window-body" id="encodedDisplay"
-            style="word-break:break-all;"><span style="color:#475569;font-style:italic;">// Will appear after generation</span></pre>
+            style="word-break:break-all;"><span class="comment">// Will appear after generation</span></pre>
         </div>
       </div>
     </div>
@@ -101,7 +102,7 @@
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect to IdP</div>
         <pre class="request-window-body"
-          id="redirectUrlDisplay"><span style="color:#475569;font-style:italic;">// Will appear after generation</span></pre>
+          id="redirectUrlDisplay"><span class="comment">// Will appear after generation</span></pre>
       </div>
       <div class="actions" style="margin-top:1rem;">
         <button class="btn btn-primary" id="redirectBtn" onclick="doRedirect()" disabled>Send to IdP →</button>
@@ -161,7 +162,7 @@
       saveConfig(FIELDS, PREFIX);
       updateAcsNote();
 
-      document.getElementById('authnXmlDisplay').innerHTML = '<span style="color:#475569;font-style:italic;">Generating…</span>';
+      document.getElementById('authnXmlDisplay').innerHTML = '<span class="comment">Generating…</span>';
       try {
         const resp = await fetch('/api/saml-request', {
           method: 'POST',
@@ -184,6 +185,7 @@
       if (!redirectUrl) { alert('Generate the AuthnRequest first.'); return; }
       window.location.href = redirectUrl;
     }
+  </script>
   <footer class="footer">
     <p>&copy; 2026 AG Nova Industries</p>
   </footer>

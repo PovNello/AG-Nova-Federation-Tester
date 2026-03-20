@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Auth Code + PKCE — AG Nova Federation Tester</title>
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')</script>
   <meta name="description" content="Step-by-step OIDC Authorization Code + PKCE flow tester. See raw HTTP requests and decoded JWT tokens.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
@@ -76,7 +77,7 @@
       <button class="btn btn-primary" onclick="doGeneratePkce()">Generate Keys</button>
       <div class="request-window" style="margin-top:0.75rem;">
         <div class="request-window-header">LOCAL CRYPTO · Web Crypto API (SHA-256)</div>
-        <pre class="request-window-body" id="pkceDisplay"><span style="color:#475569;font-style:italic;">// Click Generate Keys to run window.crypto.subtle.digest('SHA-256', ...)</span></pre>
+        <pre class="request-window-body" id="pkceDisplay"><span class="comment">// Click Generate Keys to run window.crypto.subtle.digest('SHA-256', ...)</span></pre>
       </div>
     </div>
 
@@ -89,7 +90,7 @@
       <p class="step-description">The browser is redirected to the IdP's authorization endpoint with the PKCE <code class="code">code_challenge</code>. The IdP authenticates the user and redirects back with an authorization code.</p>
       <div id="authRequestDisplay" class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
-        <pre class="request-window-body" id="authUrlDisplay"><span style="color:#475569;font-style:italic;">// Fill in config above to preview the Authorization URL</span></pre>
+        <pre class="request-window-body" id="authUrlDisplay"><span class="comment">// Fill in config above to preview the Authorization URL</span></pre>
       </div>
       <div class="actions">
         <button class="btn btn-primary" onclick="doLogin()">Redirect to IdP →</button>
@@ -105,7 +106,7 @@
       <p class="step-description">After the user authenticates, the IdP redirects back to the <code class="code">redirect_uri</code> with a short-lived <code class="code">code</code> in the query string.</p>
       <div class="request-window">
         <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
-        <pre class="request-window-body" id="codeDisplay"><span style="color:#475569;font-style:italic;">// Awaiting redirect from IdP…</span></pre>
+        <pre class="request-window-body" id="codeDisplay"><span class="comment">// Awaiting redirect from IdP…</span></pre>
       </div>
     </div>
 
@@ -118,7 +119,7 @@
       <p class="step-description">The browser POSTs directly to the token endpoint sending the <code class="code">code</code> and <code class="code">code_verifier</code>. The IdP verifies that SHA-256(verifier) == original challenge, then returns tokens.</p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint · Fetch API</div>
-        <pre class="request-window-body" id="tokenReqDisplay"><span style="color:#475569;font-style:italic;">// Waiting for step 3…</span></pre>
+        <pre class="request-window-body" id="tokenReqDisplay"><span class="comment">// Waiting for step 3…</span></pre>
       </div>
       <div class="actions">
         <button class="btn btn-primary" onclick="doExchangeToken()">Execute Token Exchange</button>
@@ -136,7 +137,7 @@
         <div class="step-title">Decoded id_token (JWT)</div>
       </div>
       <p class="step-description">The <code class="code">id_token</code> is a signed JWT. Its three parts (header, payload, signature) are base64url-encoded and dot-separated. The payload contains the user's identity claims.</p>
-      <div id="jwtDisplay"><span style="color:var(--text-faint);font-style:italic;font-size:0.875rem;">// JWT will appear here after token exchange</span></div>
+      <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
     </div>
   </div>
 
@@ -202,7 +203,7 @@
       const error = getUrlParam('error');
       if (error) {
         document.getElementById('codeDisplay').innerHTML =
-          `<span style="color:#f87171;">Error: ${escHtml(error)}\nerror_description: ${escHtml(getUrlParam('error_description') || '')}</span>`;
+          `<span class="text-danger">Error: ${escHtml(error)}\nerror_description: ${escHtml(getUrlParam('error_description') || '')}</span>`;
         return;
       }
       if (code) {

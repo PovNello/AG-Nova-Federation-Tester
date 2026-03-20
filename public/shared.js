@@ -1,3 +1,33 @@
+// ── Theme Management (Instantly apply light mode if saved) ──
+(function() {
+  if (localStorage.getItem('theme') === 'light') {
+    document.documentElement.classList.add('light');
+  }
+})();
+
+const SVG_SUN = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+const SVG_MOON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const navbar = document.querySelector('.navbar');
+  if (navbar && !document.querySelector('.btn-theme-toggle')) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn-theme-toggle';
+    
+    const isLight = document.documentElement.classList.contains('light');
+    toggleBtn.innerHTML = isLight ? SVG_MOON : SVG_SUN;
+    toggleBtn.title = 'Toggle Theme';
+    
+    toggleBtn.addEventListener('click', () => {
+      const isNowLight = document.documentElement.classList.toggle('light');
+      localStorage.setItem('theme', isNowLight ? 'light' : 'dark');
+      toggleBtn.innerHTML = isNowLight ? SVG_MOON : SVG_SUN;
+    });
+    
+    navbar.appendChild(toggleBtn);
+  }
+});
+
 // shared.js — Utilities shared across all flow pages
 
 // ── Session storage helpers ──
@@ -50,7 +80,7 @@ function renderRequestBlock(containerId, { method, url, headers = {}, body = nul
 
 function setPlaceholder(containerId, msg) {
   const el = document.getElementById(containerId);
-  if (el) { el.textContent = ''; el.innerHTML = `<span style="color:#475569;font-style:italic;">${msg}</span>`; }
+  if (el) { el.textContent = ''; el.innerHTML = `<span class="comment">${msg}</span>`; }
 }
 
 // ── JWT decoder ──
@@ -75,12 +105,12 @@ function renderJwt(containerId, token) {
   const container = document.getElementById(containerId);
   if (!container) return;
   if (!token || typeof token !== 'string') {
-    container.innerHTML = '<span style="color:#475569;font-style:italic;">No token to decode.</span>';
+    container.innerHTML = '<span class="comment">No token to decode.</span>';
     return;
   }
   const decoded = decodeJwt(token);
   if (!decoded) {
-    container.innerHTML = '<span style="color:#ef4444;">Could not decode token.</span>';
+    container.innerHTML = '<span class="text-danger">Could not decode token.</span>';
     return;
   }
   const fmt = obj => JSON.stringify(obj, null, 2);
