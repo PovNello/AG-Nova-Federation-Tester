@@ -231,10 +231,18 @@
       <div class="actions">
         <button class="btn btn-primary" onclick="doExchangeToken()">Execute Token Exchange</button>
       </div>
-      <div style="margin-top:1rem;">
-        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">IdP Token Response
-        </p>
-        <pre class="result-box result-pending" id="tokenResponse">// Awaiting token exchange…</pre>
+      <pre class="result-box result-pending" id="tokenResponse">// Awaiting token exchange…</pre>
+      </div>
+    </div>
+
+    <!-- Raw Token Quick Copy -->
+    <div id="rawTokenSection" style="margin-bottom: 1.25rem; display: none;">
+      <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Raw id_token / access_token</p>
+      <div class="input-group-copy">
+        <input type="text" id="raw_token" value="" readonly>
+        <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('raw_token').value, this)" title="Copy Raw Token">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
       </div>
     </div>
 
@@ -395,6 +403,13 @@
         showSuccess('tokenResponse', JSON.stringify(displayData, null, 2));
 
         if (data) {
+          // Populate raw token field
+          const rawToken = data.id_token || data.access_token;
+          if (rawToken) {
+            document.getElementById('raw_token').value = rawToken;
+            document.getElementById('rawTokenSection').style.display = 'block';
+          }
+
           renderTokenTabs('decodedTabs', {
             id_token: data.id_token,
             access_token: data.access_token,

@@ -86,7 +86,7 @@
     </div>
 
     <!-- Step 3: Backend request -->
-    <div class="step-card">
+    <div class="step-card" id="step3">
       <div class="step-header">
         <div class="step-number">3</div>
         <div class="step-title">Exact Request Sent by Backend</div>
@@ -96,27 +96,31 @@
       <pre class="result-box result-pending" id="backendRequest">// Will appear after executing the request</pre>
     </div>
 
-    <!-- Step 4: Response -->
-    <div class="step-card">
-      <div class="step-header">
-        <div class="step-number">4</div>
-        <div class="step-title">IdP Token Response</div>
-      </div>
-      <p class="step-description">The IdP returns an <code class="code">access_token</code>. Unlike user flows, there is
-        typically no <code class="code">id_token</code> in client credentials responses.</p>
       <pre class="result-box result-pending" id="tokenResponse">// Awaiting request…</pre>
+      </div>
     </div>
 
-    <!-- Step 5: Decoded JWT -->
+    <!-- Raw Token Quick Copy -->
+    <div id="rawTokenSection" style="margin-bottom: 1.25rem; display: none;">
+      <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Raw Access Token</p>
+      <div class="input-group-copy">
+        <input type="text" id="raw_token" value="" readonly>
+        <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('raw_token').value, this)" title="Copy Raw Token">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 5: Token Decoding -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">5</div>
-        <div class="step-title">Decoded Access Token (JWT)</div>
+        <div class="step-title">Token Decoding</div>
       </div>
-      <p class="step-description">The access token is typically a JWT. Its payload contains claims about the client
-        application (not a user) such as <code class="code">sub</code>, <code class="code">aud</code>, <code
-          class="code">iss</code>, and <code class="code">roles</code>.</p>
-      <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
+      <p class="step-description">Explore the contents of the returned tokens. Use the tabs to switch between them.</p>
+      <div id="decodedTabs">
+        <span class="comment">// Decoded tokens will appear here after request execution</span>
+      </div>
     </div>
   </div>
 
@@ -165,11 +169,36 @@
             `${result.requestSent.method} ${result.requestSent.url}\n` +
             Object.entries(result.requestSent.headers).map(([k, v]) => `${k}: ${v}`).join('\n') +
             '\n\n' + result.requestSent.body.split('&').join('\n&');
+
+          // Auto-scroll to Step 3
+          setTimeout(() => {
+            document.getElementById('step3')?.scrollIntoView({ behavior: 'smooth' });
+          }, 300);
         }
         if (result.error) { showError('tokenResponse', result.error); return; }
-        showSuccess('tokenResponse', JSON.stringify(result.responseBody, null, 2));
+
+        // Truncate long tokens for display
+        const displayData = { ...result.responseBody };
+        if (displayData.access_token) displayData.access_token = truncateToken(displayData.access_token);
+        if (displayData.id_token) displayData.id_token = truncateToken(displayData.id_token);
+        if (displayData.refresh_token) displayData.refresh_token = truncateToken(displayData.refresh_token);
+
+        showSuccess('tokenResponse', JSON.stringify(displayData, null, 2));
+
         const data = result.responseBody;
-        if (data && data.access_token) renderJwt('jwtDisplay', data.access_token);
+        if (data) {
+          // Populate raw token field
+          if (data.access_token) {
+            document.getElementById('raw_token').value = data.access_token;
+            document.getElementById('rawTokenSection').style.display = 'block';
+          }
+
+          renderTokenTabs('decodedTabs', {
+            access_token: data.access_token,
+            id_token: data.id_token,
+            refresh_token: data.refresh_token
+          });
+        }
       } catch (e) { showError('tokenResponse', 'Fetch error: ' + e.message); }
     }
   </script>
