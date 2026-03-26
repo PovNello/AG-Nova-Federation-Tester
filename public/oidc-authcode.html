@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auth Code + Secret — AG Nova Federation Tester</title>
-  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')</script>
-  <meta name="description" content="OIDC Authorization Code flow with client secret. Token exchange is proxied through the backend so the secret never has to be stored client-side.">
+  <title>Auth Code + Secret - AGN Federation Tester</title>
+  <script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light')</script>
+  <meta name="description"
+    content="OIDC Authorization Code flow with client secret. Token exchange is proxied through the backend so the secret never has to be stored client-side.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
   <nav class="navbar">
     <a href="/" class="nav-brand">
@@ -25,18 +28,25 @@
     </div>
     <div class="page-header">
       <h1>Authorization Code + Client Secret</h1>
-      <p>Confidential client flow — the token exchange uses a client secret. The secret is sent to our backend proxy per-request and never stored.</p>
+      <p>Confidential client flow — the token exchange uses a client secret. The secret is sent to our backend proxy
+        per-request and never stored.</p>
     </div>
 
     <div class="banner banner-info">
       <span class="banner-icon">⚙️</span>
-      <span>The <strong>token exchange</strong> (Step 4) is proxied through <code class="code">/api/token-exchange</code> so the client secret is kept out of browser headers/logs. The exact request the backend makes is returned and shown below.</span>
+      <span>The <strong>token exchange</strong> (Step 4) is proxied through <code
+          class="code">/api/token-exchange</code> so the client secret is kept out of browser headers/logs. The exact
+        request the backend makes is returned and shown below.</span>
     </div>
 
     <!-- Step 0: Config -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">0</div><div class="step-title">Configuration</div></div>
-      <p class="step-description">Enter your IdP details. The client secret is used only for the token exchange and is never stored server-side.</p>
+      <div class="step-header">
+        <div class="step-number">0</div>
+        <div class="step-title">Configuration</div>
+      </div>
+      <p class="step-description">Enter your IdP details. The client secret is used only for the token exchange and is
+        never stored server-side.</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Authorization Endpoint URL</label>
@@ -70,8 +80,13 @@
 
     <!-- Step 1: Authorization Request -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">1</div><div class="step-title">Authorization Request (Browser Redirect)</div></div>
-      <p class="step-description">The browser redirects to the IdP's authorization endpoint. Unlike PKCE, there is no <code class="code">code_challenge</code> — the client secret is the proof of identity at token exchange time.</p>
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Authorization Request (Browser Redirect)</div>
+      </div>
+      <p class="step-description">The browser redirects to the IdP's authorization endpoint. Unlike PKCE, there is no
+        <code class="code">code_challenge</code> — the client secret is the proof of identity at token exchange time.
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
         <pre class="request-window-body" id="authUrlDisplay"><span class="comment">// Fill in config above</span></pre>
@@ -83,40 +98,58 @@
 
     <!-- Step 2: Code received -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">2</div><div class="step-title">Authorization Code Received</div></div>
-      <p class="step-description">The IdP redirects back with a short-lived <code class="code">code</code> in the URL query string after user authentication.</p>
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Authorization Code Received</div>
+      </div>
+      <p class="step-description">The IdP redirects back with a short-lived <code class="code">code</code> in the URL
+        query string after user authentication.</p>
       <div class="request-window">
         <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
-        <pre class="request-window-body" id="codeDisplay"><span class="comment">// Awaiting redirect from IdP…</span></pre>
+        <pre class="request-window-body"
+          id="codeDisplay"><span class="comment">// Awaiting redirect from IdP…</span></pre>
       </div>
     </div>
 
     <!-- Step 3: Token Exchange via backend -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">3</div><div class="step-title">Token Exchange (via Backend Proxy)</div></div>
-      <p class="step-description">Sends the code + client secret to <code class="code">/api/token-exchange</code>. The backend makes the actual <code class="code">POST</code> to the IdP, and returns both the request it sent and the IdP's response.</p>
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Token Exchange (via Backend Proxy)</div>
+      </div>
+      <p class="step-description">Sends the code + client secret to <code class="code">/api/token-exchange</code>. The
+        backend makes the actual <code class="code">POST</code> to the IdP, and returns both the request it sent and the
+        IdP's response.</p>
       <div class="request-window">
-        <div class="request-window-header"><span class="method-badge method-POST">POST</span>/api/token-exchange → (proxied to IdP)</div>
-        <pre class="request-window-body" id="tokenReqDisplay"><span class="comment">// Preview will appear after IdP redirect</span></pre>
+        <div class="request-window-header"><span class="method-badge method-POST">POST</span>/api/token-exchange →
+          (proxied to IdP)</div>
+        <pre class="request-window-body"
+          id="tokenReqDisplay"><span class="comment">// Preview will appear after IdP redirect</span></pre>
       </div>
       <div class="actions">
         <button class="btn btn-primary" onclick="doExchange()">Execute Token Exchange</button>
       </div>
 
       <div style="margin-top:1rem;">
-        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">Exact HTTP Request sent by Backend to IdP</p>
+        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">Exact HTTP Request
+          sent by Backend to IdP</p>
         <pre class="result-box result-pending" id="backendRequest">// Will appear after exchange</pre>
       </div>
       <div style="margin-top:1rem;">
-        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">IdP Token Response</p>
+        <p style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem;">IdP Token Response
+        </p>
         <pre class="result-box result-pending" id="tokenResponse">// Awaiting token exchange…</pre>
       </div>
     </div>
 
     <!-- Step 4: JWT -->
     <div class="step-card">
-      <div class="step-header"><div class="step-number">4</div><div class="step-title">Decoded id_token (JWT)</div></div>
-      <p class="step-description">The <code class="code">id_token</code> is a signed JWT with three base64url-encoded parts separated by dots.</p>
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Decoded id_token (JWT)</div>
+      </div>
+      <p class="step-description">The <code class="code">id_token</code> is a signed JWT with three base64url-encoded
+        parts separated by dots.</p>
       <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
     </div>
   </div>
@@ -150,7 +183,7 @@
         document.getElementById('tokenReqDisplay').textContent =
           `POST /api/token-exchange\nContent-Type: application/json\n\n` +
           `{\n  "token_endpoint": "${document.getElementById('token_endpoint').value || '<token_endpoint>'}",\n` +
-          `  "code": "${code.substring(0,20)}...",\n  "client_id": "${clientId}",\n` +
+          `  "code": "${code.substring(0, 20)}...",\n  "client_id": "${clientId}",\n` +
           `  "client_secret": "***",\n  "redirect_uri": "${redirectUri}"\n}`;
       }
     }
@@ -206,7 +239,7 @@
           document.getElementById('backendRequest').className = 'result-box result-success';
           document.getElementById('backendRequest').textContent =
             `${result.requestSent.method} ${result.requestSent.url}\n` +
-            Object.entries(result.requestSent.headers).map(([k,v]) => `${k}: ${v}`).join('\n') +
+            Object.entries(result.requestSent.headers).map(([k, v]) => `${k}: ${v}`).join('\n') +
             '\n\n' + result.requestSent.body.split('&').join('\n&');
         }
         if (result.error) { showError('tokenResponse', result.error); return; }
@@ -226,4 +259,5 @@
     <p>&copy; 2026 AG Nova Industries</p>
   </footer>
 </body>
+
 </html>

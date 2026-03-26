@@ -212,10 +212,10 @@ module.exports = async (req, res) => {
       <a href="/saml-idp.html" class="btn btn-secondary">IdP-Initiated Flow</a>
       <a href="/" class="btn btn-secondary">Home</a>
     </div>
-    <footer class="footer">
-      <p>&copy; 2026 AG Nova Industries</p>
-    </footer>
   </div>
+  <footer class="footer">
+    <p>&copy; 2026 AG Nova Industries</p>
+  </footer>
 </body>
 </html>`;
 

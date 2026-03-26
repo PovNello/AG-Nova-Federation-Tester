@@ -9,7 +9,7 @@ module.exports = (req, res) => {
   const baseUrl = `${proto}://${host}`;
 
   const acsUrl = `${baseUrl}/saml/acs`;
-  const entityId = `${baseUrl}/saml/metadata`;
+  const entityId = `${baseUrl}/saml/entityid`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <md:EntityDescriptor
