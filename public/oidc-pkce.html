@@ -10,16 +10,72 @@
     content="Step-by-step OIDC Authorization Code + PKCE flow tester. See raw HTTP requests and decoded JWT tokens.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
-<style>
-    .custom-params-container { margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
-    .custom-params-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .custom-params-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .custom-params-table th { text-align: left; padding: 0.5rem; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); }
-    .custom-params-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
-    .custom-params-table input { width: 100%; background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 0.25rem 0.5rem; border-radius: 4px; transition: all 0.2s; }
-    .custom-params-table input:focus { border-color: var(--primary-color); outline: none; background: rgba(99, 102, 241, 0.1); }
-    .btn-icon { background: transparent; border: none; cursor: pointer; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--text-muted); }
-    .btn-icon:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
+  <style>
+    .custom-params-container {
+      margin-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    .custom-params-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .custom-params-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .custom-params-table th {
+      text-align: left;
+      padding: 0.5rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .custom-params-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .custom-params-table input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .custom-params-table input:focus {
+      border-color: var(--primary-color);
+      outline: none;
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      color: var(--text-muted);
+    }
+
+    .btn-icon:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger-color);
+    }
   </style>
 </head>
 
@@ -67,7 +123,7 @@
           <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
         </div>
         <div class="form-group">
-          <label>Client ID</label>
+          <label>Client ID (SPA)</label>
           <input type="text" id="client_id" placeholder="your-client-id">
         </div>
         <div class="form-group">
