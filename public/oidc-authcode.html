@@ -112,7 +112,7 @@
     </div>
 
     <!-- Step 3: Token Exchange via backend -->
-    <div class="step-card">
+    <div class="step-card" id="step3">
       <div class="step-header">
         <div class="step-number">3</div>
         <div class="step-title">Token Exchange (via Backend Proxy)</div>
@@ -142,15 +142,16 @@
       </div>
     </div>
 
-    <!-- Step 4: JWT -->
+    <!-- Step 5: Token Decoding -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">4</div>
-        <div class="step-title">Decoded id_token (JWT)</div>
+        <div class="step-number">5</div>
+        <div class="step-title">Token Decoding</div>
       </div>
-      <p class="step-description">The <code class="code">id_token</code> is a signed JWT with three base64url-encoded
-        parts separated by dots.</p>
-      <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
+      <p class="step-description">Explore the contents of the returned tokens. Use the tabs to switch between them.</p>
+      <div id="decodedTabs">
+        <span class="comment">// Decoded tokens will appear here after exchange</span>
+      </div>
     </div>
   </div>
 
@@ -166,6 +167,13 @@
       attachAutoSave(SAVE_FIELDS, PREFIX, updateDisplay);
       checkForCode();
       updateDisplay();
+
+      // Auto-scroll logic
+      if (getUrlParam('code')) {
+        setTimeout(() => {
+          document.getElementById('step3')?.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+      }
     });
 
     function updateDisplay() {
@@ -243,10 +251,23 @@
             '\n\n' + result.requestSent.body.split('&').join('\n&');
         }
         if (result.error) { showError('tokenResponse', result.error); return; }
-        showSuccess('tokenResponse', JSON.stringify(result.responseBody, null, 2));
+
+        // Truncate long tokens for display
+        const displayData = { ...result.responseBody };
+        if (displayData.access_token) displayData.access_token = truncateToken(displayData.access_token);
+        if (displayData.id_token) displayData.id_token = truncateToken(displayData.id_token);
+        if (displayData.refresh_token) displayData.refresh_token = truncateToken(displayData.refresh_token);
+
+        showSuccess('tokenResponse', JSON.stringify(displayData, null, 2));
+
         const data = result.responseBody;
-        if (data && data.id_token) renderJwt('jwtDisplay', data.id_token);
-        else if (data && data.access_token) renderJwt('jwtDisplay', data.access_token);
+        if (data) {
+          renderTokenTabs('decodedTabs', {
+            id_token: data.id_token,
+            access_token: data.access_token,
+            refresh_token: data.refresh_token
+          });
+        }
       } catch (e) { showError('tokenResponse', 'Fetch error: ' + e.message); }
     }
 

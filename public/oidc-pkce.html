@@ -109,7 +109,7 @@
     </div>
 
     <!-- Step 3: Auth Code Received -->
-    <div class="step-card">
+    <div class="step-card" id="step3">
       <div class="step-header">
         <div class="step-number">3</div>
         <div class="step-title">Authorization Code Received</div>
@@ -147,16 +147,16 @@
       </div>
     </div>
 
-    <!-- Step 5: Decoded JWT -->
+    <!-- Step 5: Token Decoding -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">5</div>
-        <div class="step-title">Decoded id_token (JWT)</div>
+        <div class="step-title">Token Decoding</div>
       </div>
-      <p class="step-description">The <code class="code">id_token</code> is a signed JWT. Its three parts (header,
-        payload, signature) are base64url-encoded and dot-separated. The payload contains the user's identity claims.
-      </p>
-      <div id="jwtDisplay"><span class="comment">// JWT will appear here after token exchange</span></div>
+      <p class="step-description">Explore the contents of the returned tokens. Use the tabs to switch between them.</p>
+      <div id="decodedTabs">
+        <span class="comment">// Decoded tokens will appear here after token exchange</span>
+      </div>
     </div>
   </div>
 
@@ -171,6 +171,13 @@
       attachAutoSave(FIELDS, PREFIX, updateAuthDisplay);
       checkForCode();
       updateAuthDisplay();
+
+      // Auto-scroll logic
+      if (getUrlParam('code')) {
+        setTimeout(() => {
+          document.getElementById('step3')?.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+      }
     });
 
     function updateAuthDisplay() {
@@ -273,9 +280,22 @@
           body: body.toString()
         });
         const data = await resp.json();
-        showSuccess('tokenResponse', JSON.stringify(data, null, 2));
-        if (data.id_token) renderJwt('jwtDisplay', data.id_token);
-        else if (data.access_token) renderJwt('jwtDisplay', data.access_token);
+
+        // Truncate long tokens for display
+        const displayData = { ...data };
+        if (displayData.access_token) displayData.access_token = truncateToken(displayData.access_token);
+        if (displayData.id_token) displayData.id_token = truncateToken(displayData.id_token);
+        if (displayData.refresh_token) displayData.refresh_token = truncateToken(displayData.refresh_token);
+
+        showSuccess('tokenResponse', JSON.stringify(displayData, null, 2));
+
+        if (data) {
+          renderTokenTabs('decodedTabs', {
+            id_token: data.id_token,
+            access_token: data.access_token,
+            refresh_token: data.refresh_token
+          });
+        }
       } catch (e) {
         showError('tokenResponse', 'Network error: ' + e.message);
       }

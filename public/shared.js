@@ -184,3 +184,82 @@ const LOGO_SVG = `<svg width="26" height="26" viewBox="0 0 28 28" fill="none" xm
   <path d="M7 14C7 17.866 10.134 21 14 21C17.866 21 21 17.866 21 14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2"/>
   <circle cx="14" cy="14" r="2.5" fill="white"/>
 </svg>`;
+
+// ── Token Utility Helpers ──
+
+function truncateToken(token, limit = 45) {
+  if (!token || typeof token !== 'string' || token.length <= limit * 2) return token;
+  const start = token.substring(0, limit);
+  const end = token.substring(token.length - limit);
+  return `${start}... [truncated] ...${end}`;
+}
+
+async function copyToClipboard(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '✅ Copied!';
+    btn.classList.add('btn-success-temporary');
+    setTimeout(() => {
+      btn.innerHTML = oldText;
+      btn.classList.remove('btn-success-temporary');
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy: ', err);
+  }
+}
+
+function renderTokenTabs(containerId, tokens) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const availableTokens = Object.entries(tokens).filter(([key, val]) => val && typeof val === 'string');
+  if (availableTokens.length === 0) {
+    container.innerHTML = '<span class="comment">No tokens available to decode.</span>';
+    return;
+  }
+
+  let html = `
+    <div class="tabs-container">
+      <div class="tab-list">
+        ${availableTokens.map(([key], index) => `
+          <button class="tab-btn ${index === 0 ? 'active' : ''}" onclick="switchTab(this, '${containerId}', '${key}')">
+            ${key.replace('_', ' ').toUpperCase()}
+          </button>
+        `).join('')}
+      </div>
+      <div class="tab-panels">
+        ${availableTokens.map(([key, val], index) => `
+          <div id="panel-${containerId}-${key}" class="tab-panel ${index === 0 ? 'active' : ''}">
+            <div class="panel-header">
+              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${val}', this)">
+                📋 Copy Raw Token
+              </button>
+            </div>
+            <div id="decoded-${containerId}-${key}"></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // Initialize decoded content for each tab
+  availableTokens.forEach(([key, val]) => {
+    renderJwt(`decoded-${containerId}-${key}`, val);
+  });
+}
+
+// Global switch tab helper (called from inline-onclick)
+window.switchTab = function(btn, containerId, key) {
+  const container = document.getElementById(containerId);
+  // Deactivate all buttons in this container
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Deactivate all panels in this container
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${containerId}-${key}`).classList.add('active');
+};
+
