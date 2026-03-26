@@ -96,19 +96,15 @@
       <pre class="result-box result-pending" id="backendRequest">// Will appear after executing the request</pre>
     </div>
 
+    <!-- Step 4: Response -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">IdP Token Response</div>
+      </div>
+      <p class="step-description">The IdP returns an <code class="code">access_token</code>. Unlike user flows, there is
+        typically no <code class="code">id_token</code> in client credentials responses.</p>
       <pre class="result-box result-pending" id="tokenResponse">// Awaiting request…</pre>
-      </div>
-    </div>
-
-    <!-- Raw Token Quick Copy -->
-    <div id="rawTokenSection" style="margin-bottom: 1.25rem; display: none;">
-      <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Raw Access Token</p>
-      <div class="input-group-copy">
-        <input type="text" id="raw_token" value="" readonly>
-        <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('raw_token').value, this)" title="Copy Raw Token">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-        </button>
-      </div>
     </div>
 
     <!-- Step 5: Token Decoding -->
@@ -187,12 +183,6 @@
 
         const data = result.responseBody;
         if (data) {
-          // Populate raw token field
-          if (data.access_token) {
-            document.getElementById('raw_token').value = data.access_token;
-            document.getElementById('rawTokenSection').style.display = 'block';
-          }
-
           renderTokenTabs('decodedTabs', {
             access_token: data.access_token,
             id_token: data.id_token,
