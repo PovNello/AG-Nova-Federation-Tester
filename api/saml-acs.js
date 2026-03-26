@@ -152,7 +152,7 @@ module.exports = async (req, res) => {
   <nav class="navbar">
     <a href="/" class="nav-brand">
       <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
-      <span class="nav-title">AG Nova Federation Tester</span>
+      <span class="nav-title">AGN Federation Tester</span>
     </a>
   </nav>
 
