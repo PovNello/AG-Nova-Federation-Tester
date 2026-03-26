@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Authorization Flow - AGN Federation Tester</title>
+  <script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light')</script>
+  <meta name="description"
+    content="Step-by-step OIDC Device Authorization Flow tester. Designed for limited-input devices like TVs or CLI tools.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .device-code-display {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: 0.2rem;
+      color: var(--accent);
+      text-align: center;
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: rgba(223, 123, 53, 0.05);
+      border: 2px dashed var(--accent);
+      font-family: var(--font-mono);
+    }
+    .poll-status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(127, 174, 168, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--teal);
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .verification-link {
+        word-break: break-all;
+        color: var(--teal);
+        text-decoration: underline;
+        font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AGN Federation Tester</span>
+    </a>
+  </nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">OIDC</a><span class="breadcrumb-sep">›</span>
+      <span>Device Flow</span>
+    </div>
+    <div class="page-header">
+      <h1>Device Authorization Flow</h1>
+      <p>RFC 8628 — Optimized for devices with restricted input capabilities. The device displays a code, and the user approves it on another device.</p>
+    </div>
+
+    <div class="banner banner-info">
+      <span class="banner-icon">📱</span>
+      <span>All token requests are proxied via <code class="code">/api/oidc-device</code> to ensure CORS compatibility and to show you the exact backend-to-IdP interaction.</span>
+    </div>
+
+    <!-- Step 0: Config -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">0</div>
+        <div class="step-title">Configuration</div>
+      </div>
+      <p class="step-description">Set your OIDC endpoints. The <strong>Device Authorization Endpoint</strong> is where we request the user code.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Device Authorization Endpoint</label>
+          <input type="text" id="device_auth_endpoint" placeholder="https://login.example.com/oauth2/device/authorize">
+        </div>
+        <div class="form-group">
+          <label>Token Endpoint</label>
+          <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="client_id" placeholder="your-client-id">
+        </div>
+        <div class="form-group">
+          <label>Scopes</label>
+          <input type="text" id="scopes" value="openid profile email">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Request Device Code -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Request Device & User Codes</div>
+      </div>
+      <p class="step-description">The "device" makes a POST request to start the flow. The IdP returns a <strong>user_code</strong> and a <strong>verification_uri</strong>.</p>
+      <button class="btn btn-primary" onclick="requestDeviceCode()">Execute Request</button>
+      
+      <div style="margin-top:1rem;">
+        <p class="label-muted">Request sent to IdP</p>
+        <div class="request-window">
+          <div class="request-window-header"><span class="method-badge method-POST">POST</span> /api/oidc-device</div>
+          <pre class="request-window-body" id="deviceAuthReqDisplay"><span class="comment">// Awaiting execution...</span></pre>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <p class="label-muted">IdP Response</p>
+        <pre class="result-box result-pending" id="deviceAuthResponse">// Awaiting response...</pre>
+      </div>
+    </div>
+
+    <!-- Step 2: User Action -->
+    <div class="step-card" id="step2" style="display: none;">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">User Approval Required</div>
+      </div>
+      <p class="step-description">Display these to the user. They must visit the URL and enter the code below.</p>
+      
+      <div class="device-code-display" id="displayUserCode">XXXX-XXXX</div>
+      
+      <p style="text-align: center; margin-bottom: 1rem;">
+        Visit: <a id="displayVerificationUri" href="#" target="_blank" class="verification-link">---</a>
+      </p>
+
+      <div class="actions" style="justify-content: center;">
+        <button class="btn btn-secondary btn-sm" onclick="copyUserCode(event)">📋 Copy Code</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyVerificationUri(event)">📋 Copy URL</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Polling for Token -->
+    <div class="step-card" id="step3" style="display: none;">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Token Polling</div>
+      </div>
+      <p class="step-description">The device repeatedly polls the token endpoint using the <strong>device_code</strong> until the user approves the request.</p>
+      
+      <div class="poll-status" id="pollStatusUl">
+         <div class="spinner" id="pollSpinner" style="display:none;"></div>
+         <span id="pollStatusText">Polling not started</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="btnPoll" onclick="startPolling()">Start Polling</button>
+        <button class="btn btn-danger btn-sm" id="btnStopPoll" onclick="stopPolling()" style="display:none;">Stop</button>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <p class="label-muted">Latest Polling Request & Response</p>
+        <div class="request-window">
+          <div class="request-window-header">POLLING LOG</div>
+          <pre class="request-window-body" id="pollLog"><span class="comment">// Polling attempts will appear here...</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Token Result -->
+    <div class="step-card" id="step4" style="display: none;">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Tokens Received & Decoded</div>
+      </div>
+      <p class="step-description">Success! The user approved the request and we received the OIDC tokens.</p>
+      
+      <div id="decodedTabs">
+        <!-- Decoded tokens go here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script>
+    const FIELDS = ['device_auth_endpoint', 'token_endpoint', 'client_id', 'scopes'];
+    const PREFIX = 'deviceflow';
+    
+    let pollTimeout = null;
+    let isPolling = false;
+    let currentDeviceCode = null;
+
+    window.addEventListener('load', () => {
+      loadConfig(FIELDS, PREFIX);
+      attachAutoSave(FIELDS, PREFIX);
+    });
+
+    async function requestDeviceCode() {
+      const deviceEndpoint = document.getElementById('device_auth_endpoint').value;
+      const clientId = document.getElementById('client_id').value;
+      const scopes = document.getElementById('scopes').value;
+
+      if (!deviceEndpoint || !clientId) {
+        alert('Please fill in Device Authorization Endpoint and Client ID.');
+        return;
+      }
+
+      showPending('deviceAuthResponse', 'Requesting codes...');
+      document.getElementById('deviceAuthReqDisplay').textContent = `POST /api/oidc-device\nContent-Type: application/json\n\n{\n  "endpoint": "${deviceEndpoint}",\n  "client_id": "${clientId}",\n  "scope": "${scopes}"\n}`;
+
+      try {
+        const resp = await fetch('/api/oidc-device', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            endpoint: deviceEndpoint, 
+            client_id: clientId, 
+            scope: scopes,
+            type: 'init' 
+          })
+        });
+        const result = await resp.json();
+
+        if (result.error) {
+          showError('deviceAuthResponse', result.error);
+          return;
+        }
+
+        const data = result.responseBody;
+        showSuccess('deviceAuthResponse', JSON.stringify(data, null, 2));
+
+        // Setup Step 2 & 3
+        currentDeviceCode = data.device_code;
+        document.getElementById('displayUserCode').textContent = data.user_code;
+        document.getElementById('displayVerificationUri').textContent = data.verification_uri;
+        document.getElementById('displayVerificationUri').href = data.verification_uri;
+        
+        document.getElementById('step2').style.display = 'block';
+        document.getElementById('step3').style.display = 'block';
+        document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+
+        // Default interval or 5 seconds
+        window.currentInterval = (data.interval || 5) * 1000;
+
+      } catch (e) {
+        showError('deviceAuthResponse', 'Network error: ' + e.message);
+      }
+    }
+
+    async function startPolling() {
+      if (isPolling) return;
+      isPolling = true;
+      
+      document.getElementById('btnPoll').style.display = 'none';
+      document.getElementById('btnStopPoll').style.display = 'inline-block';
+      document.getElementById('pollSpinner').style.display = 'block';
+      document.getElementById('pollStatusText').textContent = 'Polling active...';
+
+      pollLoop();
+    }
+
+    function stopPolling() {
+      isPolling = false;
+      if (pollTimeout) clearTimeout(pollTimeout);
+      document.getElementById('btnPoll').style.display = 'inline-block';
+      document.getElementById('btnStopPoll').style.display = 'none';
+      document.getElementById('pollSpinner').style.display = 'none';
+      document.getElementById('pollStatusText').textContent = 'Polling stopped';
+    }
+
+    async function pollLoop() {
+      if (!isPolling) return;
+
+      const tokenEndpoint = document.getElementById('token_endpoint').value;
+      const clientId = document.getElementById('client_id').value;
+
+      const log = document.getElementById('pollLog');
+      const timestamp = new Date().toLocaleTimeString();
+      
+      try {
+        const resp = await fetch('/api/oidc-device', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            endpoint: tokenEndpoint, 
+            client_id: clientId, 
+            device_code: currentDeviceCode,
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+            type: 'poll' 
+          })
+        });
+        const result = await resp.json();
+        const data = result.responseBody;
+
+        log.textContent = `[${timestamp}] POST ${tokenEndpoint}\nResponse: ${JSON.stringify(data, null, 2)}`;
+
+        if (data.access_token || data.id_token) {
+          stopPolling();
+          handleSuccess(data);
+        } else if (data.error === 'authorization_pending') {
+          // Continue polling
+          pollTimeout = setTimeout(pollLoop, window.currentInterval);
+        } else if (data.error === 'slow_down') {
+          window.currentInterval += 5000;
+          pollTimeout = setTimeout(pollLoop, window.currentInterval);
+        } else {
+          stopPolling();
+          document.getElementById('pollStatusText').textContent = 'Polling failed: ' + (data.error_description || data.error);
+        }
+      } catch (e) {
+        stopPolling();
+        document.getElementById('pollStatusText').textContent = 'Network error during polling';
+      }
+    }
+
+    function handleSuccess(data) {
+      document.getElementById('pollStatusText').textContent = 'Success! Tokens received.';
+      document.getElementById('step4').style.display = 'block';
+      
+      renderTokenTabs('decodedTabs', {
+        id_token: data.id_token,
+        access_token: data.access_token,
+        refresh_token: data.refresh_token
+      });
+
+      document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function copyUserCode(e) {
+      copyToClipboard(document.getElementById('displayUserCode').textContent, e.target);
+    }
+
+    function copyVerificationUri(e) {
+      copyToClipboard(document.getElementById('displayVerificationUri').textContent, e.target);
+    }
+
+    function clearAll() {
+      sessionStorage.clear();
+      window.location.reload();
+    }
+  </script>
+  <footer class="footer">
+    <p>&copy; 2026 AG Nova Industries</p>
+  </footer>
+</body>
+
+</html>
