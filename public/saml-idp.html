@@ -32,10 +32,10 @@
         SAMLResponse straight to the ACS endpoint.</p>
     </div>
 
-    <!-- Flow Explanation -->
+    <!-- Step 0: How IdP-Initiated SSO Works -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">1</div>
+        <div class="step-number">0</div>
         <div class="step-title">How IdP-Initiated SSO Works</div>
       </div>
       <p class="step-description">Unlike SP-Initiated, there is <strong>no AuthnRequest</strong>. The flow is:</p>
@@ -54,34 +54,43 @@
       </div>
     </div>
 
-    <!-- ACS Registration -->
+    <!-- Step 1: ACS Registration -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">2</div>
+        <div class="step-number">1</div>
         <div class="step-title">Register This App with Your IdP</div>
       </div>
       <p class="step-description">Configure the following values in your IdP's SAML application settings:</p>
       <div class="form-grid">
         <div class="form-group">
           <label>ACS URL (Assertion Consumer Service)</label>
-          <input type="text" id="acs_url" readonly style="cursor:text;">
+          <div class="input-group-copy">
+            <input type="text" id="acs_url" readonly>
+            <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('acs_url').value, this)" title="Copy ACS URL">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label>SP Entity ID</label>
-          <input type="text" id="entity_id" readonly style="cursor:text;">
+          <div class="input-group-copy">
+            <input type="text" id="entity_id" readonly>
+            <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('entity_id').value, this)" title="Copy Entity ID">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
         </div>
       </div>
       <div class="actions">
-        <a id="metadataLink" href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View SP Metadata XML
-          ↗</a>
-        <button class="btn btn-secondary btn-sm" onclick="copyAcs()">Copy ACS URL</button>
+        <a id="metadataLink" href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View SP Metadata XML ↗</a>
+        <button class="btn btn-secondary btn-sm" onclick="downloadMetadata()">Download Metadata XML ↓</button>
       </div>
     </div>
 
-    <!-- IdP POST diagram -->
+    <!-- Step 2: IdP POST diagram -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">3</div>
+        <div class="step-number">2</div>
         <div class="step-title">What the IdP Will POST to the ACS</div>
       </div>
       <p class="step-description">The IdP sends an HTTP POST with a <code class="code">SAMLResponse</code> form field
@@ -92,10 +101,10 @@
       </div>
     </div>
 
-    <!-- ACS result -->
+    <!-- Step 3: ACS result -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">4</div>
+        <div class="step-number">3</div>
         <div class="step-title">ACS Decodes and Displays the Assertion</div>
       </div>
       <p class="step-description">When the IdP POSTs to <code class="code">/saml/acs</code>, the backend decodes the
@@ -129,8 +138,22 @@
         `\n&RelayState=`;
     });
 
-    function copyAcs() {
-      navigator.clipboard.writeText(document.getElementById('acs_url').value);
+    async function downloadMetadata() {
+      try {
+        const resp = await fetch('/saml/metadata');
+        const xml = await resp.text();
+        const blob = new Blob([xml], { type: 'application/xml' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'agn-saml-metadata.xml';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (e) {
+        alert('Failed to download metadata: ' + e.message);
+      }
     }
   </script>
   <footer class="footer">

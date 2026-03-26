@@ -32,37 +32,66 @@
         POSTs a SAMLResponse back to the ACS URL.</p>
     </div>
 
-    <!-- Step 1: Config -->
+    <!-- Step 0: Config -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">1</div>
+        <div class="step-number">0</div>
         <div class="step-title">Configuration</div>
       </div>
-      <p class="step-description">Enter your IdP's Single Sign-On URL and configure the SP Entity ID. The ACS URL is
-        pre-filled with the Vercel deployment URL.</p>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>IdP SSO URL</label>
-          <input type="text" id="idp_sso_url" placeholder="https://your-idp.com/sso/saml">
-        </div>
-        <div class="form-group">
-          <label>SP Entity ID</label>
-          <input type="text" id="entity_id" placeholder="https://your-app.vercel.app/saml/metadata">
-        </div>
-        <div class="form-group">
-          <label>ACS URL (where IdP posts back)</label>
-          <input type="text" id="acs_url" placeholder="https://your-app.vercel.app/saml/acs">
+      <p class="step-description">Configure the SAML exchange. Values are saved to sessionStorage and update the flow live.</p>
+      
+      <div style="margin-bottom: 2rem;">
+        <h3 style="font-size: 0.85rem; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem;">IdP Configuration (Incoming)</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>IdP SSO URL</label>
+            <input type="text" id="idp_sso_url" placeholder="https://your-idp.com/sso/saml">
+          </div>
         </div>
       </div>
-      <div class="actions">
-        <button class="btn btn-secondary btn-sm" onclick="prefillFromOrigin()">Auto-fill from current domain</button>
+
+      <div>
+        <h3 style="font-size: 0.85rem; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem;">Service Provider Configuration (AGN Tester)</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>SP Entity ID</label>
+            <div class="input-group-copy">
+              <input type="text" id="entity_id" placeholder="https://your-app.vercel.app/saml/metadata">
+              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('entity_id').value, this)" title="Copy Entity ID">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>ACS URL (Assertion Consumer Service)</label>
+            <div class="input-group-copy">
+              <input type="text" id="acs_url" placeholder="https://your-app.vercel.app/saml/acs">
+              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('acs_url').value, this)" title="Copy ACS URL">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>SP Metadata URI</label>
+            <div class="input-group-copy">
+              <input type="text" id="metadata_uri" readonly>
+              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('metadata_uri').value, this)" title="Copy Metadata URL">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+            <div class="actions" style="margin-top: 0.5rem;">
+              <a id="view_metadata" href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View Metadata XML ↗</a>
+              <button class="btn btn-secondary btn-sm" onclick="downloadMetadata()">Download Metadata XML ↓</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Step 2: Generate AuthnRequest -->
+    <!-- Step 1: Generate AuthnRequest -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">2</div>
+        <div class="step-number">1</div>
         <div class="step-title">Generate AuthnRequest XML</div>
       </div>
       <p class="step-description">The SP builds a SAML <code class="code">&lt;AuthnRequest&gt;</code> XML document. It
@@ -91,10 +120,10 @@
       </div>
     </div>
 
-    <!-- Step 3: Redirect URL -->
+    <!-- Step 2: Redirect URL -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">3</div>
+        <div class="step-number">2</div>
         <div class="step-title">Build the Redirect URL</div>
       </div>
       <p class="step-description">The full URL sent to the IdP combines the SSO URL with the encoded <code
@@ -109,10 +138,10 @@
       </div>
     </div>
 
-    <!-- Step 4: ACS result note -->
+    <!-- Step 3: ACS result note -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">4</div>
+        <div class="step-number">3</div>
         <div class="step-title">SAMLResponse at ACS</div>
       </div>
       <p class="step-description">After authentication, the IdP will HTTP-POST the <code
@@ -122,9 +151,6 @@
         <span class="banner-icon">ℹ️</span>
         <span>ACS Endpoint: <code class="code" id="acsUrlNote">/saml/acs</code> — register this with your IdP as the
           Assertion Consumer Service URL.</span>
-      </div>
-      <div class="actions" style="margin-top:1rem;">
-        <a href="/saml/metadata" target="_blank" class="btn btn-secondary btn-sm">View SP Metadata XML ↗</a>
       </div>
     </div>
   </div>
@@ -136,29 +162,54 @@
     let redirectUrl = null;
 
     window.addEventListener('load', () => {
+      const base = window.location.origin;
+      document.getElementById('metadata_uri').value = base + '/saml/metadata';
+      document.getElementById('view_metadata').href = base + '/saml/metadata';
+      
+      // Auto-fill SP fields if empty
+      if (!sessionStorage.getItem(PREFIX + ':entity_id')) {
+        document.getElementById('entity_id').value = base + '/saml/metadata';
+      }
+      if (!sessionStorage.getItem(PREFIX + ':acs_url')) {
+        document.getElementById('acs_url').value = base + '/saml/acs';
+      }
+
       loadConfig(FIELDS, PREFIX);
-      attachAutoSave(FIELDS, PREFIX, () => { });
+      attachAutoSave(FIELDS, PREFIX, () => {
+        updateAcsNote();
+      });
       updateAcsNote();
     });
 
     function updateAcsNote() {
       const acs = document.getElementById('acs_url').value;
-      if (acs) document.getElementById('acsUrlNote').textContent = acs;
+      const note = document.getElementById('acsUrlNote');
+      if (acs && note) note.textContent = acs;
     }
 
-    function prefillFromOrigin() {
-      const base = window.location.origin;
-      document.getElementById('entity_id').value = base + '/saml/metadata';
-      document.getElementById('acs_url').value = base + '/saml/acs';
-      saveConfig(FIELDS, PREFIX);
-      updateAcsNote();
+    async function downloadMetadata() {
+      try {
+        const resp = await fetch('/saml/metadata');
+        const xml = await resp.text();
+        const blob = new Blob([xml], { type: 'application/xml' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'agn-saml-metadata.xml';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (e) {
+        alert('Failed to download metadata: ' + e.message);
+      }
     }
 
     async function doGenerateRequest() {
       const idpSsoUrl = document.getElementById('idp_sso_url').value;
       const entityId = document.getElementById('entity_id').value;
       const acsUrl = document.getElementById('acs_url').value;
-      if (!idpSsoUrl || !entityId || !acsUrl) { alert('Please fill in all three fields.'); return; }
+      if (!idpSsoUrl || !entityId || !acsUrl) { alert('Please fill in all configuration fields.'); return; }
       saveConfig(FIELDS, PREFIX);
       updateAcsNote();
 
