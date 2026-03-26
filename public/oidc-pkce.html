@@ -10,6 +10,17 @@
     content="Step-by-step OIDC Authorization Code + PKCE flow tester. See raw HTTP requests and decoded JWT tokens.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
+<style>
+    .custom-params-container { margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
+    .custom-params-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .custom-params-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .custom-params-table th { text-align: left; padding: 0.5rem; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); }
+    .custom-params-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
+    .custom-params-table input { width: 100%; background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 0.25rem 0.5rem; border-radius: 4px; transition: all 0.2s; }
+    .custom-params-table input:focus { border-color: var(--primary-color); outline: none; background: rgba(99, 102, 241, 0.1); }
+    .btn-icon { background: transparent; border: none; cursor: pointer; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--text-muted); }
+    .btn-icon:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
+  </style>
 </head>
 
 <body>
@@ -68,6 +79,25 @@
           <input type="text" id="scopes" value="openid profile email">
         </div>
       </div>
+      <div class="custom-params-container">
+        <div class="custom-params-header">
+          <h3 style="font-size: 1rem; margin: 0;">Additional URI Parameters</h3>
+          <button class="btn btn-primary btn-sm" onclick="addCustomParam()">+ Add Param</button>
+        </div>
+        <table class="custom-params-table" id="customParamsTable">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Value</th>
+              <th style="width: 40px;"></th>
+            </tr>
+          </thead>
+          <tbody id="customParamsBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+
       <div class="actions">
         <button class="btn btn-danger btn-sm" onclick="clearAll()">Clear All</button>
       </div>
@@ -186,6 +216,7 @@
       const redirectUri = document.getElementById('redirect_uri').value || '<redirect_uri>';
       const scopes = document.getElementById('scopes').value || '<scopes>';
       const challenge = sessionStorage.getItem('pkce:challenge') || '<code_challenge — generate first>';
+      const customParams = getCustomParams();
 
       const params = [
         `?response_type=code`,
@@ -196,6 +227,12 @@
         `&code_challenge_method=S256`,
         `&state=${sessionStorage.getItem('pkce:state') || '<state>'}`,
       ];
+
+      // Add custom params to display
+      customParams.forEach(p => {
+        if (p.key) params.push(`&${p.key}=${encodeURIComponent(p.value)}`);
+      });
+
       document.getElementById('authUrlDisplay').textContent = `GET ${endpoint}\n${params.join('\n')}`;
 
       const verifier = sessionStorage.getItem('pkce:verifier');
@@ -250,7 +287,14 @@
       if (!challenge) { alert('Please generate PKCE keys first (Step 1).'); return; }
       const redirectUri = document.getElementById('redirect_uri').value;
       const scopes = document.getElementById('scopes').value;
-      const url = `${endpoint}?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${challenge}&code_challenge_method=S256&state=${state}`;
+      const customParams = getCustomParams();
+
+      let url = `${endpoint}?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${challenge}&code_challenge_method=S256&state=${state}`;
+
+      customParams.forEach(p => {
+        if (p.key) url += `&${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`;
+      });
+
       window.location.href = url;
     }
 
@@ -305,6 +349,61 @@
       sessionStorage.clear();
       window.location.href = window.location.origin + '/oidc-pkce.html';
     }
+
+    // ── Custom Param Logic ──
+    function getCustomParams() {
+      try {
+        return JSON.parse(sessionStorage.getItem('pkce:custom_params')) || [];
+      } catch (e) { return []; }
+    }
+
+    function saveCustomParams(params) {
+      sessionStorage.setItem('pkce:custom_params', JSON.stringify(params));
+      updateAuthDisplay();
+    }
+
+    function renderCustomParams() {
+      const params = getCustomParams();
+      const body = document.getElementById('customParamsBody');
+      body.innerHTML = '';
+
+      params.forEach((p, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="text" value="${escHtml(p.key)}" oninput="updateParam(${index}, 'key', this.value)" placeholder="e.g. prompt"></td>
+          <td><input type="text" value="${escHtml(p.value)}" oninput="updateParam(${index}, 'value', this.value)" placeholder="e.g. login"></td>
+          <td>
+            <button class="btn-icon" onclick="removeCustomParam(${index})" title="Remove">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+            </button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function addCustomParam() {
+      const params = getCustomParams();
+      params.push({ key: '', value: '' });
+      saveCustomParams(params);
+      renderCustomParams();
+    }
+
+    function removeCustomParam(index) {
+      const params = getCustomParams();
+      params.splice(index, 1);
+      saveCustomParams(params);
+      renderCustomParams();
+    }
+
+    function updateParam(index, field, value) {
+      const params = getCustomParams();
+      params[index][field] = value;
+      saveCustomParams(params);
+    }
+
+    // Initialize custom params on load
+    window.addEventListener('load', renderCustomParams);
   </script>
   <footer class="footer">
     <p>&copy; 2026 AG Nova Industries</p>
