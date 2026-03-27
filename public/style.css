@@ -245,22 +245,64 @@ body { display: flex; flex-direction: column; font-family: 'IBM Plex Mono', mono
 }
 .section-title { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 0.3rem; }
 .section-desc { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem; }
-.tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; margin-bottom: 3rem; background: var(--border); border: 1px solid var(--border); }
+.tile-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+  gap: 1.5rem; 
+  margin-bottom: 3rem; 
+}
 .tile {
   background: var(--surface);
-  padding: 1.25rem 1.3rem;
-  text-decoration: none; color: var(--text);
-  transition: background .12s ease;
-  display: flex; flex-direction: column; gap: 0.5rem;
-  border-top: 3px solid transparent;
+  padding: 1.5rem;
+  text-decoration: none; 
+  color: var(--text);
+  transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
 }
+
+.tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+  transform-origin: left;
+}
+
 .tile:hover {
-  background: var(--accent-light);
-  border-top-color: var(--accent);
+  transform: translateY(-5px);
+  box-shadow: var(--shadow);
+  border-color: var(--accent);
+  background: var(--surface); /* Keep surface background on hover but add subtle tint if preferred */
 }
-.tile-icon { font-size: 1.4rem; margin-bottom: 0.15rem; }
-.tile-title { font-size: 0.95rem; font-weight: 700; }
-.tile-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+.tile:hover::before {
+  transform: scaleX(1);
+}
+
+.tile-icon { 
+  font-size: 1.6rem; 
+  margin-bottom: 0.25rem; 
+  background: var(--bg);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.tile-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+.tile-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
 .tile-badge {
   display: inline-flex; align-items: center; gap: 0.3rem;
   font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.45rem;

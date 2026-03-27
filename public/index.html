@@ -156,7 +156,7 @@
           <img src="/assets/oidcicon.png" alt="OIDC Icon" style="height: 100%; width: auto; max-width: 100%;">
         </div>
         <div class="section-info">
-          <h2>OpenID Connect (OIDC)</h2>
+          <h2>OpenID Connect</h2>
           <p>Token-based identity flows built on top of OAuth 2.0</p>
         </div>
       </div>
@@ -166,23 +166,28 @@
           <div class="tile-title">Auth Code + PKCE</div>
           <div class="tile-desc">Authorization Code flow with Proof Key for Code Exchange. No client secret needed —
             designed for public clients.</div>
+          <div class="tile-badge badge-browser">BROWSER-ONLY</div>
         </a>
         <a href="/oidc-authcode.html" class="tile">
           <div class="tile-icon">🗝️</div>
           <div class="tile-title">Auth Code + Secret</div>
           <div class="tile-desc">Authorization Code flow with a confidential client secret. Token exchange proxied
             through backend.</div>
+          <div class="tile-badge badge-backend">BACKEND PROXY</div>
         </a>
         <a href="/oidc-clientcreds.html" class="tile">
           <div class="tile-icon">🤖</div>
           <div class="tile-title">Client Credentials</div>
           <div class="tile-desc">Machine-to-machine grant. No user involved — the client authenticates directly for an
             access token.</div>
+          <div class="tile-badge badge-backend">BACKEND-DRIVEN</div>
         </a>
         <a href="/oidc-device.html" class="tile">
           <div class="tile-icon">📱</div>
           <div class="tile-title">Device Flow</div>
-          <div class="tile-desc">Optimized for restricted devices (TVs, CLI). The device shows a code, and you approve it on another screen.</div>
+          <div class="tile-desc">Optimized for restricted devices (TVs, CLI). The device shows a code, and you approve
+            it on another screen.</div>
+          <div class="tile-badge badge-backend">POLL PROXY</div>
         </a>
       </div>
     </div>
@@ -206,12 +211,14 @@
           <div class="tile-title">SP-Initiated SSO</div>
           <div class="tile-desc">The Service Provider generates an AuthnRequest and redirects the user to the IdP to
             authenticate.</div>
+          <div class="tile-badge badge-saml">XML GENERATOR</div>
         </a>
         <a href="/saml-idp.html" class="tile">
           <div class="tile-icon">⬅️</div>
           <div class="tile-title">IdP-Initiated SSO</div>
           <div class="tile-desc">The Identity Provider initiates the session and POSTs a SAMLResponse directly to the
             ACS endpoint.</div>
+          <div class="tile-badge badge-saml">ACS ENDPOINT</div>
         </a>
       </div>
     </div>
