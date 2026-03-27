@@ -20,8 +20,9 @@ Unlike standard client libraries, this tool **does not hide** intermediate steps
 
 ### 🔐 OIDC (OpenID Connect)
 1.  **Authorization Code + PKCE**: 5 clear Browser-side steps. Perfect for SPA flow understanding.
-2.  **Authorization Code + Client Secret**: Uses safely proxies token exchange serverless routines.
+2.  **Authorization Code + Client Secret**: Uses a backend proxy for the token exchange to handle client secrets securely.
 3.  **Client Credentials**: Machine-to-machine exchange fully executed with backend logs.
+4.  **Device Authorization Flow**: Optimized for input-constrained devices (polled proxy logic).
 
 ### 🛡️ SAML 2.0
 1.  **SP-Initiated SSO**: Generates a standard (unsigned) `AuthnRequest`, deflates/encodes it with correct `RelayState`, and handles POST Assertion redirection.
@@ -34,19 +35,21 @@ Unlike standard client libraries, this tool **does not hide** intermediate steps
 ```text
 OIDC Tester/
 ├── public/                       # Static Frontend (Flat/Square UI)
-│   ├── index.html                # Homepage Grid
+│   ├── index.html                # Homepage with OIDC & SAML Cards
 │   ├── style.css                 # Brand Design (Orange/Teal/Cream)
 │   ├── shared.js                 # JS Helpers (PKCE, JWT Decode)
 │   ├── oidc-pkce.html            # Auth Code + PKCE
 │   ├── oidc-authcode.html        # Auth Code + Secret
 │   ├── oidc-clientcreds.html     # Client Credentials
+│   ├── oidc-device.html          # Device Flow (polling)
 │   ├── saml-sp.html              # SP-Initiated SSO
-│   ├── saml-idp.html              # IdP-Initiated SSO
+│   ├── saml-idp.html             # IdP-Initiated SSO
 │   └── assets/                   # Branding 
 │
 ├── api/                          # Node.js Serverless Functions
-│   ├── token-exchange.js         # Proxy exchange Proxy
-│   ├── client-credentials.js     # Client credential token runner
+│   ├── token-exchange.js         # Proxy for Auth Code + Secret
+│   ├── client-credentials.js     # Client Credentials implementation
+│   ├── oidc-device.js            # Proxy for Device Flow init & polling
 │   ├── saml-request.js           # Builds unsigned AuthnRequest
 │   ├── saml-acs.js               # Assertion Consumer Service endpoint
 │   └── saml-metadata.js          # Outputs SP Metadata XML

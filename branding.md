@@ -25,9 +25,9 @@ Extracted from the AG Nova brand logo and implemented via CSS variables.
 ## 📐 UI Principles (Flat & Angular)
 The design prioritizes a professional, technical look inspired by legacy terminal systems and modern minimalism:
 - **Square Edges**: Minimal `border-radius: 4px` on cards and `0` on buttons/inputs.
-- **Section Isolation**: 1px borders separate tiles; 3px left-border accents on "Step Cards".
-- **Dynamic Feedback**: Hover effects use `var(--accent-light)` or `var(--teal-light)` overlays.
-- **Responsive Grid**: Homepage tiles use a dynamic grid (`repeat(auto-fit, minmax(240px, 1fr))`).
+- **Card Isolation**: Individual tiles with 1px borders, subtle shadows, and a top-border accent on hover.
+- **Dynamic Feedback**: Hover effects use `var(--accent)` border highlights and an animated top-bar.
+- **Responsive Grid**: Homepage tiles use a flexible grid (`repeat(auto-fill, minmax(280px, 1fr))` with `1.5rem` gap).
 
 ## 🖼️ Assets
 Located in `/public/assets/`:

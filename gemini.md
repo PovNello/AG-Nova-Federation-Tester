@@ -17,7 +17,7 @@ Unlike standard client libraries, it **does not hide** intermediate steps or raw
 ```text
 AG Nova Federation Tester/
 ├── public/                       # Static Frontend (Modern, Flat/Square UI)
-│   ├── index.html                # Homepage with OIDC & SAML Grid
+│   ├── index.html                # Homepage with OIDC & SAML Cards
 │   ├── style.css                 # Brand Design System (Orange/Teal/Cream)
 │   ├── shared.js                 # JS Helpers (PKCE, JWT Decode, SessionStorage)
 │   ├── oidc-pkce.html            # Auth Code + PKCE (Browser-only)
@@ -57,6 +57,7 @@ AG Nova Federation Tester/
 
 ### UI/UX Standards
 - **Step-by-Step Flow**: Each flow is broken into "Step Cards" starting from **Step 0**.
+- **Tile-based Flow Selection**: Homepage uses an high-visibility card layout with implementation badges (e.g., Browser-only vs Proxy).
 - **Terminal View**: Requests are rendered in a terminal-style block showing Method, URL, and Body.
 - **Auto-Save**: Form inputs are persisted in `sessionStorage` via `attachAutoSave` in `shared.js`.
 - **Auto-Scroll**: The page automatically scrolls to new results (e.g., after receiving a code or token).
