@@ -256,7 +256,7 @@ body { display: flex; flex-direction: column; font-family: 'IBM Plex Mono', mono
   padding: 1.5rem;
   text-decoration: none; 
   color: var(--text);
-  transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
   display: flex; 
   flex-direction: column; 
   gap: 0.75rem;
@@ -279,10 +279,9 @@ body { display: flex; flex-direction: column; font-family: 'IBM Plex Mono', mono
 }
 
 .tile:hover {
-  transform: translateY(-5px);
   box-shadow: var(--shadow);
   border-color: var(--accent);
-  background: var(--surface); /* Keep surface background on hover but add subtle tint if preferred */
+  background: var(--surface);
 }
 
 .tile:hover::before {
