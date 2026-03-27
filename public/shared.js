@@ -9,24 +9,69 @@ const SVG_SUN = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
 const SVG_MOON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
 
 document.addEventListener('DOMContentLoaded', () => {
-  const navbar = document.querySelector('.navbar');
-  if (navbar && !document.querySelector('.btn-theme-toggle')) {
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'btn-theme-toggle';
-    
-    const isLight = document.documentElement.classList.contains('light');
-    toggleBtn.innerHTML = isLight ? SVG_MOON : SVG_SUN;
-    toggleBtn.title = 'Toggle Theme';
-    
-    toggleBtn.addEventListener('click', () => {
-      const isNowLight = document.documentElement.classList.toggle('light');
-      localStorage.setItem('theme', isNowLight ? 'light' : 'dark');
-      toggleBtn.innerHTML = isNowLight ? SVG_MOON : SVG_SUN;
-    });
-    
-    navbar.appendChild(toggleBtn);
-  }
+  // Inject layout components first
+  injectLayout();
 });
+
+/**
+ * Injects both header and footer into the page.
+ */
+function injectLayout() {
+  injectHeader();
+  injectFooter();
+}
+
+/**
+ * Injects the standard header into the .navbar element.
+ */
+function injectHeader() {
+  const navbar = document.querySelector('.navbar');
+  if (!navbar) return;
+
+  navbar.innerHTML = `
+    <a href="/" class="nav-brand">
+      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
+      <span class="nav-title">AGN Federation Tester</span>
+    </a>
+  `;
+
+  // Initialize theme toggle on the newly injected navbar
+  initThemeToggle(navbar);
+}
+
+/**
+ * Injects the standard footer into the .footer element.
+ */
+function injectFooter() {
+  const footer = document.querySelector('.footer');
+  if (!footer) return;
+
+  footer.innerHTML = `
+    <p>&copy; 2026 - AG Nova Industries - <a href="https://agnovaindustries.com" target="_blank" style="color: inherit; text-decoration: none;">agnovaindustries.com</a></p>
+  `;
+}
+
+/**
+ * Initializes the theme toggle button within a given container.
+ */
+function initThemeToggle(container) {
+  if (container.querySelector('.btn-theme-toggle')) return;
+
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'btn-theme-toggle';
+
+  const isLight = document.documentElement.classList.contains('light');
+  toggleBtn.innerHTML = isLight ? SVG_MOON : SVG_SUN;
+  toggleBtn.title = 'Toggle Theme';
+
+  toggleBtn.addEventListener('click', () => {
+    const isNowLight = document.documentElement.classList.toggle('light');
+    localStorage.setItem('theme', isNowLight ? 'light' : 'dark');
+    toggleBtn.innerHTML = isNowLight ? SVG_MOON : SVG_SUN;
+  });
+
+  container.appendChild(toggleBtn);
+}
 
 // shared.js — Utilities shared across all flow pages
 
