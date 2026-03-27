@@ -125,6 +125,7 @@ module.exports = async (req, res) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAML ACS — AG Nova Federation Tester</title>
+  <script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light')</script>
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -149,12 +150,7 @@ module.exports = async (req, res) => {
   </style>
 </head>
 <body>
-  <nav class="navbar">
-    <a href="/" class="nav-brand">
-      <img src="/assets/agnovalogonotext.png" alt="AG Nova logo" class="nav-logo">
-      <span class="nav-title">AGN Federation Tester</span>
-    </a>
-  </nav>
+  <nav class="navbar"></nav>
 
   <div class="acs-container">
     <a href="/saml-sp.html" class="back-link">← Back to SP-Initiated Tester</a>
@@ -213,9 +209,8 @@ module.exports = async (req, res) => {
       <a href="/" class="btn btn-secondary">Home</a>
     </div>
   </div>
-  <footer class="footer">
-    <p>&copy; 2026 AG Nova Industries</p>
-  </footer>
+  <footer class="footer"></footer>
+  <script src="/shared.js"></script>
 </body>
 </html>`;
 
