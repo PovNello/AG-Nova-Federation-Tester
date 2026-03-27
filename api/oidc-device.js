@@ -57,7 +57,7 @@ module.exports = async (req, res) => {
   try { payload = await parseBody(req); }
   catch (e) { res.status(400).json({ error: e.message }); return; }
 
-  const { endpoint, type, client_id, scope, device_code } = payload;
+  const { endpoint, type, client_id, client_secret, scope, device_code } = payload;
 
   if (!endpoint || !type || !client_id) {
     res.status(400).json({ error: 'Missing required fields: endpoint, type, client_id' });
@@ -65,6 +65,7 @@ module.exports = async (req, res) => {
   }
 
   const params = { client_id };
+  if (client_secret) params.client_secret = client_secret;
 
   if (type === 'init') {
     if (scope) params.scope = scope;

@@ -23,6 +23,7 @@
       border: 2px dashed var(--accent);
       font-family: var(--font-mono);
     }
+
     .poll-status {
       display: flex;
       align-items: center;
@@ -30,6 +31,7 @@
       font-weight: 600;
       margin-bottom: 1rem;
     }
+
     .spinner {
       width: 18px;
       height: 18px;
@@ -38,14 +40,18 @@
       border-top-color: var(--teal);
       animation: spin 1s linear infinite;
     }
+
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
+
     .verification-link {
-        word-break: break-all;
-        color: var(--teal);
-        text-decoration: underline;
-        font-weight: 600;
+      word-break: break-all;
+      color: var(--teal);
+      text-decoration: underline;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -66,12 +72,14 @@
     </div>
     <div class="page-header">
       <h1>Device Authorization Flow</h1>
-      <p>RFC 8628 — Optimized for devices with restricted input capabilities. The device displays a code, and the user approves it on another device.</p>
+      <p>RFC 8628 — Optimized for devices with restricted input capabilities. The device displays a code, and the user
+        approves it on another device.</p>
     </div>
 
     <div class="banner banner-info">
       <span class="banner-icon">📱</span>
-      <span>All token requests are proxied via <code class="code">/api/oidc-device</code> to ensure CORS compatibility and to show you the exact backend-to-IdP interaction.</span>
+      <span>All token requests are proxied via <code class="code">/api/oidc-device</code> to ensure CORS compatibility
+        and to show you the exact backend-to-IdP interaction.</span>
     </div>
 
     <!-- Step 0: Config -->
@@ -80,7 +88,8 @@
         <div class="step-number">0</div>
         <div class="step-title">Configuration</div>
       </div>
-      <p class="step-description">Set your OIDC endpoints. The <strong>Device Authorization Endpoint</strong> is where we request the user code.</p>
+      <p class="step-description">Set your OIDC endpoints. The <strong>Device Authorization Endpoint</strong> is where
+        we request the user code.</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Device Authorization Endpoint</label>
@@ -93,6 +102,10 @@
         <div class="form-group">
           <label>Client ID</label>
           <input type="text" id="client_id" placeholder="your-client-id">
+        </div>
+        <div class="form-group">
+          <label>Client Secret (Optional, if app is not public client enabled)</label>
+          <input type="password" id="client_secret" placeholder="your-client-secret (if confidential client)">
         </div>
         <div class="form-group">
           <label>Scopes</label>
@@ -110,14 +123,16 @@
         <div class="step-number">1</div>
         <div class="step-title">Request Device & User Codes</div>
       </div>
-      <p class="step-description">The "device" makes a POST request to start the flow. The IdP returns a <strong>user_code</strong> and a <strong>verification_uri</strong>.</p>
+      <p class="step-description">The "device" makes a POST request to start the flow. The IdP returns a
+        <strong>user_code</strong> and a <strong>verification_uri</strong>.</p>
       <button class="btn btn-primary" onclick="requestDeviceCode()">Execute Request</button>
-      
+
       <div style="margin-top:1rem;">
         <p class="label-muted">Request sent to IdP</p>
         <div class="request-window">
           <div class="request-window-header"><span class="method-badge method-POST">POST</span> /api/oidc-device</div>
-          <pre class="request-window-body" id="deviceAuthReqDisplay"><span class="comment">// Awaiting execution...</span></pre>
+          <pre class="request-window-body"
+            id="deviceAuthReqDisplay"><span class="comment">// Awaiting execution...</span></pre>
         </div>
       </div>
 
@@ -134,9 +149,9 @@
         <div class="step-title">User Approval Required</div>
       </div>
       <p class="step-description">Display these to the user. They must visit the URL and enter the code below.</p>
-      
+
       <div class="device-code-display" id="displayUserCode">XXXX-XXXX</div>
-      
+
       <p style="text-align: center; margin-bottom: 1rem;">
         Visit: <a id="displayVerificationUri" href="#" target="_blank" class="verification-link">---</a>
       </p>
@@ -153,23 +168,26 @@
         <div class="step-number">3</div>
         <div class="step-title">Token Polling</div>
       </div>
-      <p class="step-description">The device repeatedly polls the token endpoint using the <strong>device_code</strong> until the user approves the request.</p>
-      
+      <p class="step-description">The device repeatedly polls the token endpoint using the <strong>device_code</strong>
+        until the user approves the request.</p>
+
       <div class="poll-status" id="pollStatusUl">
-         <div class="spinner" id="pollSpinner" style="display:none;"></div>
-         <span id="pollStatusText">Polling not started</span>
+        <div class="spinner" id="pollSpinner" style="display:none;"></div>
+        <span id="pollStatusText">Polling not started</span>
       </div>
 
       <div class="actions">
         <button class="btn btn-primary" id="btnPoll" onclick="startPolling()">Start Polling</button>
-        <button class="btn btn-danger btn-sm" id="btnStopPoll" onclick="stopPolling()" style="display:none;">Stop</button>
+        <button class="btn btn-danger btn-sm" id="btnStopPoll" onclick="stopPolling()"
+          style="display:none;">Stop</button>
       </div>
 
       <div style="margin-top:1rem;">
         <p class="label-muted">Latest Polling Request & Response</p>
         <div class="request-window">
           <div class="request-window-header">POLLING LOG</div>
-          <pre class="request-window-body" id="pollLog"><span class="comment">// Polling attempts will appear here...</span></pre>
+          <pre class="request-window-body"
+            id="pollLog"><span class="comment">// Polling attempts will appear here...</span></pre>
         </div>
       </div>
     </div>
@@ -181,7 +199,7 @@
         <div class="step-title">Tokens Received & Decoded</div>
       </div>
       <p class="step-description">Success! The user approved the request and we received the OIDC tokens.</p>
-      
+
       <div id="decodedTabs">
         <!-- Decoded tokens go here -->
       </div>
@@ -190,9 +208,9 @@
 
   <script src="/shared.js"></script>
   <script>
-    const FIELDS = ['device_auth_endpoint', 'token_endpoint', 'client_id', 'scopes'];
+    const FIELDS = ['device_auth_endpoint', 'token_endpoint', 'client_id', 'client_secret', 'scopes'];
     const PREFIX = 'deviceflow';
-    
+
     let pollTimeout = null;
     let isPolling = false;
     let currentDeviceCode = null;
@@ -205,6 +223,7 @@
     async function requestDeviceCode() {
       const deviceEndpoint = document.getElementById('device_auth_endpoint').value;
       const clientId = document.getElementById('client_id').value;
+      const clientSecret = document.getElementById('client_secret').value;
       const scopes = document.getElementById('scopes').value;
 
       if (!deviceEndpoint || !clientId) {
@@ -213,17 +232,18 @@
       }
 
       showPending('deviceAuthResponse', 'Requesting codes...');
-      document.getElementById('deviceAuthReqDisplay').textContent = `POST /api/oidc-device\nContent-Type: application/json\n\n{\n  "endpoint": "${deviceEndpoint}",\n  "client_id": "${clientId}",\n  "scope": "${scopes}"\n}`;
+      document.getElementById('deviceAuthReqDisplay').textContent = `POST /api/oidc-device\nContent-Type: application/json\n\n{\n  "endpoint": "${deviceEndpoint}",\n  "client_id": "${clientId}",\n  "client_secret": "${clientSecret ? '***' : '(none)'}",\n  "scope": "${scopes}"\n}`;
 
       try {
         const resp = await fetch('/api/oidc-device', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            endpoint: deviceEndpoint, 
-            client_id: clientId, 
+          body: JSON.stringify({
+            endpoint: deviceEndpoint,
+            client_id: clientId,
+            client_secret: clientSecret,
             scope: scopes,
-            type: 'init' 
+            type: 'init'
           })
         });
         const result = await resp.json();
@@ -241,7 +261,7 @@
         document.getElementById('displayUserCode').textContent = data.user_code;
         document.getElementById('displayVerificationUri').textContent = data.verification_uri;
         document.getElementById('displayVerificationUri').href = data.verification_uri;
-        
+
         document.getElementById('step2').style.display = 'block';
         document.getElementById('step3').style.display = 'block';
         document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
@@ -257,7 +277,7 @@
     async function startPolling() {
       if (isPolling) return;
       isPolling = true;
-      
+
       document.getElementById('btnPoll').style.display = 'none';
       document.getElementById('btnStopPoll').style.display = 'inline-block';
       document.getElementById('pollSpinner').style.display = 'block';
@@ -280,20 +300,22 @@
 
       const tokenEndpoint = document.getElementById('token_endpoint').value;
       const clientId = document.getElementById('client_id').value;
+      const clientSecret = document.getElementById('client_secret').value;
 
       const log = document.getElementById('pollLog');
       const timestamp = new Date().toLocaleTimeString();
-      
+
       try {
         const resp = await fetch('/api/oidc-device', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            endpoint: tokenEndpoint, 
-            client_id: clientId, 
+          body: JSON.stringify({
+            endpoint: tokenEndpoint,
+            client_id: clientId,
+            client_secret: clientSecret,
             device_code: currentDeviceCode,
             grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-            type: 'poll' 
+            type: 'poll'
           })
         });
         const result = await resp.json();
@@ -323,7 +345,7 @@
     function handleSuccess(data) {
       document.getElementById('pollStatusText').textContent = 'Success! Tokens received.';
       document.getElementById('step4').style.display = 'block';
-      
+
       renderTokenTabs('decodedTabs', {
         id_token: data.id_token,
         access_token: data.access_token,
