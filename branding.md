@@ -24,10 +24,16 @@ Extracted from the AG Nova brand logo and implemented via CSS variables.
 
 ## 📐 UI Principles (Flat & Angular)
 The design prioritizes a professional, technical look inspired by legacy terminal systems and modern minimalism:
+- **Centralized Components**: The Header (`.navbar`) and Footer (`.footer`) are dynamically injected via `shared.js`.
 - **Square Edges**: Minimal `border-radius: 4px` on cards and `0` on buttons/inputs.
 - **Card Isolation**: Individual tiles with 1px borders, subtle shadows, and a top-border accent on hover.
 - **Dynamic Feedback**: Hover effects use `var(--accent)` border highlights and an animated top-bar.
 - **Responsive Grid**: Homepage tiles use a flexible grid (`repeat(auto-fill, minmax(280px, 1fr))` with `1.5rem` gap).
+
+## 📄 Footer & Copyright
+The standard footer for all pages (injected via `shared.js`) is:
+- **Format**: `&copy; 2026 - AG Nova Industries - <a href="https://agnovaindustries.com" target="_blank">agnovaindustries.com</a>`
+- **Styling**: `inherit` color for the link (or standard brand teal for visibility), no underline unless hovered.
 
 ## 🖼️ Assets
 Located in `/public/assets/`:
