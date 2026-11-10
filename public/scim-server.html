@@ -28,18 +28,6 @@
       </p>
     </div>
 
-    <div id="bannerStorage" class="banner banner-warning" hidden>
-      <span class="banner-icon">⚠️</span>
-      <span><strong>In-memory storage.</strong> No Redis configured: data is lost when the server restarts, and on Vercel
-        it may vanish between requests. Set <code class="code">KV_REST_API_URL</code> /
-        <code class="code">KV_REST_API_TOKEN</code> (Upstash) for reliable storage.</span>
-    </div>
-    <div id="bannerLocal" class="banner banner-info" hidden>
-      <span class="banner-icon">🌐</span>
-      <span>You are on <code class="code">localhost</code>. Entra ID cannot reach it — use the deployed site or a public
-        tunnel (e.g. ngrok). You can still test with the curl example below.</span>
-    </div>
-
     <!-- Step 0: Overview -->
     <div class="step-card">
       <div class="step-header">
@@ -54,7 +42,8 @@
       </p>
       <p class="step-description" style="margin-bottom:0;">Requests are authenticated with a bearer
         <strong>Secret Token</strong>. Data is kept per endpoint for 7 days and only the last 200 requests are logged.
-        Passwords sent by the IdP are masked in the log and never stored.</p>
+        Passwords sent by the IdP are masked in the log and never stored.
+      </p>
     </div>
 
     <!-- Step 1: Endpoint -->
@@ -77,8 +66,13 @@
             <label>Tenant URL</label>
             <div class="input-group-copy">
               <input type="text" id="tenantUrl" readonly>
-              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('tenantUrl').value, this)" title="Copy Tenant URL">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <button class="btn-copy-inline"
+                onclick="copyToClipboard(document.getElementById('tenantUrl').value, this)" title="Copy Tenant URL">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -86,8 +80,13 @@
             <label>Secret Token</label>
             <div class="input-group-copy">
               <input type="text" id="secretToken" readonly>
-              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('secretToken').value, this)" title="Copy Secret Token">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <button class="btn-copy-inline"
+                onclick="copyToClipboard(document.getElementById('secretToken').value, this)" title="Copy Secret Token">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
               </button>
             </div>
             <div class="form-hint">Stored in this browser (localStorage) so the page survives reloads.</div>
@@ -108,12 +107,14 @@
         <div class="step-title">Connect Entra ID</div>
       </div>
       <ol class="steps-list">
-        <li><strong>Entra admin center → Enterprise applications → New application → Create your own application</strong>
+        <li><strong>Entra admin center → Enterprise applications → New application → Create your own
+            application</strong>
           (non-gallery).</li>
         <li>Open it → <strong>Provisioning → Get started</strong> → Provisioning Mode: <strong>Automatic</strong>.</li>
         <li><strong>Admin Credentials</strong>: paste the Tenant URL and Secret Token above →
           <strong>Test Connection</strong>. You should see a <code class="code">GET /Users?filter=…</code> in the log
-          below.</li>
+          below.
+        </li>
         <li><strong>Mappings</strong>: review the user / group attribute mappings.</li>
         <li><strong>Users and groups</strong>: assign users / groups to the app.</li>
         <li><strong>Provision on demand</strong> pushes one user right away; <strong>Start provisioning</strong> runs
@@ -142,7 +143,9 @@
         <label class="check-row"><input type="checkbox" id="autoRefresh" checked> Auto-refresh (5s)</label>
         <span class="comment" id="refreshMsg" style="font-size:0.8rem;"></span>
       </div>
-      <div class="log-list" id="logList"><div class="table-empty">Create an endpoint to start receiving requests.</div></div>
+      <div class="log-list" id="logList">
+        <div class="table-empty">Create an endpoint to start receiving requests.</div>
+      </div>
     </div>
 
     <!-- Step 4: State -->
@@ -154,9 +157,13 @@
       <p class="step-description">What the identity provider has created so far. Click a row to see the stored SCIM
         resource.</p>
       <div class="section-label">Users (<span id="userCount">0</span>)</div>
-      <div class="table-wrap" id="usersTable"><div class="table-empty">No users.</div></div>
+      <div class="table-wrap" id="usersTable">
+        <div class="table-empty">No users.</div>
+      </div>
       <div class="section-label" style="margin-top:1.25rem;">Groups (<span id="groupCount">0</span>)</div>
-      <div class="table-wrap" id="groupsTable"><div class="table-empty">No groups.</div></div>
+      <div class="table-wrap" id="groupsTable">
+        <div class="table-empty">No groups.</div>
+      </div>
       <div class="request-window" id="detailWindow" hidden>
         <div class="request-window-header" id="detailTitle">Resource</div>
         <pre class="request-window-body" id="detailBody"></pre>
@@ -322,7 +329,7 @@
           const { status, json } = await admin('create');
           if (status !== 200) { showError('createError', 'Could not create endpoint: ' + (json.error || status)); return; }
           $('createError').className = ''; $('createError').textContent = '';
-          endpoint ={ eid: json.eid, token: json.token, tenantUrl: json.tenantUrl };
+          endpoint = { eid: json.eid, token: json.token, tenantUrl: json.tenantUrl };
           saveEndpoint();
           $('bannerStorage').hidden = json.storage !== 'memory';
           lastSig = '';
