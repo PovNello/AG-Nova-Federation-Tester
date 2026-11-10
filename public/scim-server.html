@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCIM 2.0 Server - AGN Federation Tester</title>
+  <script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light')</script>
+  <meta name="description"
+    content="SCIM 2.0 server for testing identity provisioning. Entra ID pushes users and groups to your endpoint — inspect every raw SCIM request and the resulting state.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+  <nav class="navbar"></nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">User Sync</a><span class="breadcrumb-sep">›</span>
+      <span>SCIM 2.0 Server</span>
+    </div>
+    <div class="page-header">
+      <h1>SCIM 2.0 Server</h1>
+      <p>Provisioning is <strong>push</strong>: the identity provider (Entra ID) calls <em>your</em> SCIM endpoint to
+        create, update and delete users and groups. This page is that endpoint — and shows you every call it receives.
+      </p>
+    </div>
+
+    <div id="bannerStorage" class="banner banner-warning" hidden>
+      <span class="banner-icon">⚠️</span>
+      <span><strong>In-memory storage.</strong> No Redis configured: data is lost when the server restarts, and on Vercel
+        it may vanish between requests. Set <code class="code">KV_REST_API_URL</code> /
+        <code class="code">KV_REST_API_TOKEN</code> (Upstash) for reliable storage.</span>
+    </div>
+    <div id="bannerLocal" class="banner banner-info" hidden>
+      <span class="banner-icon">🌐</span>
+      <span>You are on <code class="code">localhost</code>. Entra ID cannot reach it — use the deployed site or a public
+        tunnel (e.g. ngrok). You can still test with the curl example below.</span>
+    </div>
+
+    <!-- Step 0: Overview -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">0</div>
+        <div class="step-title">How it works</div>
+      </div>
+      <p class="step-description">
+        <span class="code">Entra ID</span> → <span class="code">GET /Users?filter=userName eq "…"</span> (does the user
+        exist?) → <span class="code">POST /Users</span> (create) → <span class="code">PATCH /Users/{id}</span>
+        (changes) → <span class="code">DELETE /Users/{id}</span> (deprovision). Groups work the same way via
+        <span class="code">/Groups</span> and <code class="code">members</code> operations.
+      </p>
+      <p class="step-description" style="margin-bottom:0;">Requests are authenticated with a bearer
+        <strong>Secret Token</strong>. Data is kept per endpoint for 7 days and only the last 200 requests are logged.
+        Passwords sent by the IdP are masked in the log and never stored.</p>
+    </div>
+
+    <!-- Step 1: Endpoint -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Your SCIM Endpoint</div>
+      </div>
+      <div id="noEndpoint">
+        <p class="step-description">Create a private endpoint. You get a unique Tenant URL and Secret Token to paste
+          into the identity provider.</p>
+        <div class="actions" style="margin-top:0;">
+          <button class="btn btn-primary" id="btnCreate">Create Endpoint</button>
+        </div>
+        <div id="createError"></div>
+      </div>
+      <div id="hasEndpoint" hidden>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tenant URL</label>
+            <div class="input-group-copy">
+              <input type="text" id="tenantUrl" readonly>
+              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('tenantUrl').value, this)" title="Copy Tenant URL">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Secret Token</label>
+            <div class="input-group-copy">
+              <input type="text" id="secretToken" readonly>
+              <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('secretToken').value, this)" title="Copy Secret Token">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+            <div class="form-hint">Stored in this browser (localStorage) so the page survives reloads.</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary btn-sm" id="btnReset">Clear users, groups &amp; log</button>
+          <button class="btn btn-danger btn-sm" id="btnDelete">Delete endpoint</button>
+          <span class="comment" id="endpointMsg" style="align-self:center;font-size:0.8rem;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Setup guide -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Connect Entra ID</div>
+      </div>
+      <ol class="steps-list">
+        <li><strong>Entra admin center → Enterprise applications → New application → Create your own application</strong>
+          (non-gallery).</li>
+        <li>Open it → <strong>Provisioning → Get started</strong> → Provisioning Mode: <strong>Automatic</strong>.</li>
+        <li><strong>Admin Credentials</strong>: paste the Tenant URL and Secret Token above →
+          <strong>Test Connection</strong>. You should see a <code class="code">GET /Users?filter=…</code> in the log
+          below.</li>
+        <li><strong>Mappings</strong>: review the user / group attribute mappings.</li>
+        <li><strong>Users and groups</strong>: assign users / groups to the app.</li>
+        <li><strong>Provision on demand</strong> pushes one user right away; <strong>Start provisioning</strong> runs
+          the cycle (about every 40 minutes).</li>
+      </ol>
+      <p class="step-description" style="margin-top:1rem;">No Entra at hand? Fire a request yourself:</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-POST">POST</span>curl example</div>
+        <pre class="request-window-body" id="curlExample"><span class="comment">// Create an endpoint first</span></pre>
+      </div>
+      <div class="actions" style="margin-top:0.75rem;">
+        <button class="btn btn-secondary btn-sm" id="btnCopyCurl" disabled>📋 Copy curl</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Request log -->
+    <div class="step-card" id="step3">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Received Requests</div>
+      </div>
+      <p class="step-description">Every call the identity provider makes, newest first. Click an entry to see the raw
+        request and the response we returned.</p>
+      <div class="actions" style="margin-top:0;align-items:center;">
+        <button class="btn btn-secondary btn-sm" id="btnRefresh">↻ Refresh</button>
+        <label class="check-row"><input type="checkbox" id="autoRefresh" checked> Auto-refresh (5s)</label>
+        <span class="comment" id="refreshMsg" style="font-size:0.8rem;"></span>
+      </div>
+      <div class="log-list" id="logList"><div class="table-empty">Create an endpoint to start receiving requests.</div></div>
+    </div>
+
+    <!-- Step 4: State -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Provisioned State</div>
+      </div>
+      <p class="step-description">What the identity provider has created so far. Click a row to see the stored SCIM
+        resource.</p>
+      <div class="section-label">Users (<span id="userCount">0</span>)</div>
+      <div class="table-wrap" id="usersTable"><div class="table-empty">No users.</div></div>
+      <div class="section-label" style="margin-top:1.25rem;">Groups (<span id="groupCount">0</span>)</div>
+      <div class="table-wrap" id="groupsTable"><div class="table-empty">No groups.</div></div>
+      <div class="request-window" id="detailWindow" hidden>
+        <div class="request-window-header" id="detailTitle">Resource</div>
+        <pre class="request-window-body" id="detailBody"></pre>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer"></footer>
+  <script src="/shared.js"></script>
+  <script>
+    const LS_KEY = 'scim:endpoint';
+    const $ = id => document.getElementById(id);
+    let endpoint = null;           // { eid, token, tenantUrl }
+    let timer = null;
+    let lastSig = '';
+    let lastState = null;
+    const openLogs = new Set();
+    let curlText = '';
+
+    function loadEndpoint() {
+      try { endpoint = JSON.parse(localStorage.getItem(LS_KEY)); } catch { endpoint = null; }
+      if (!endpoint || !endpoint.eid || !endpoint.token) endpoint = null;
+    }
+    function saveEndpoint() {
+      try {
+        if (endpoint) localStorage.setItem(LS_KEY, JSON.stringify(endpoint));
+        else localStorage.removeItem(LS_KEY);
+      } catch { /* storage may be blocked */ }
+    }
+
+    async function admin(action) {
+      const resp = await fetch('/api/scim-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, eid: endpoint && endpoint.eid, token: endpoint && endpoint.token })
+      });
+      let json = {};
+      try { json = await resp.json(); } catch { /* ignore */ }
+      return { status: resp.status, json };
+    }
+
+    // ── UI state ──
+    function applyEndpointUi() {
+      $('noEndpoint').hidden = !!endpoint;
+      $('hasEndpoint').hidden = !endpoint;
+      if (endpoint) {
+        $('tenantUrl').value = endpoint.tenantUrl;
+        $('secretToken').value = endpoint.token;
+        curlText =
+          `curl -X POST "${endpoint.tenantUrl}/Users" \\\n` +
+          `  -H "Authorization: Bearer ${endpoint.token}" \\\n` +
+          `  -H "Content-Type: application/scim+json" \\\n` +
+          `  -d '{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"jane.doe@example.com","displayName":"Jane Doe","active":true,"emails":[{"type":"work","value":"jane.doe@example.com","primary":true}]}'`;
+        $('curlExample').textContent = curlText;
+        $('btnCopyCurl').disabled = false;
+      } else {
+        $('curlExample').innerHTML = '<span class="comment">// Create an endpoint first</span>';
+        $('btnCopyCurl').disabled = true;
+        $('logList').innerHTML = '<div class="table-empty">Create an endpoint to start receiving requests.</div>';
+        renderState({ users: [], groups: [] });
+        lastSig = '';
+      }
+    }
+
+    function setMsg(id, text) { $(id).textContent = text || ''; }
+
+    // ── Rendering ──
+    function statusClass(s) { return s < 300 ? '2xx' : s < 500 ? '4xx' : '5xx'; }
+
+    function renderLog(log) {
+      const el = $('logList');
+      if (!log.length) { el.innerHTML = '<div class="table-empty">No requests received yet. Run “Test Connection” in Entra or use the curl example.</div>'; return; }
+      el.innerHTML = log.map(e => {
+        const hdrs = Object.entries(e.headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+        const reqBody = e.body == null ? '' : (typeof e.body === 'string' ? e.body : JSON.stringify(e.body, null, 2));
+        const resBody = e.responseBody == null ? '(empty body)' : JSON.stringify(e.responseBody, null, 2);
+        const m = escHtml(e.method);
+        return `<details class="log-entry" data-id="${escHtml(e.id)}"${openLogs.has(e.id) ? ' open' : ''}>
+          <summary>
+            <span class="method-badge method-${m}">${m}</span>
+            <span class="log-url">${escHtml(e.url)}</span>
+            <span class="status-pill status-${statusClass(e.status)}">${escHtml(e.status)}</span>
+            <span class="log-time">${escHtml(new Date(e.ts).toLocaleTimeString())} · ${escHtml(e.ms)}ms</span>
+          </summary>
+          <div class="log-body">
+            <div class="request-window"><div class="request-window-header">Request</div>
+              <pre class="request-window-body">${escHtml(`${e.method} ${e.url}\n${hdrs}${reqBody ? '\n\n' + reqBody : ''}`)}</pre></div>
+            <div class="request-window"><div class="request-window-header">Response · ${escHtml(e.status)}</div>
+              <pre class="request-window-body">${escHtml(resBody)}</pre></div>
+          </div>
+        </details>`;
+      }).join('');
+    }
+
+    function table(items, cols, type) {
+      if (!items.length) return `<div class="table-empty">No ${type}.</div>`;
+      return `<table class="data-table"><thead><tr>${cols.map(c => `<th>${escHtml(c.label)}</th>`).join('')}</tr></thead><tbody>` +
+        items.map(it => `<tr class="clickable" data-type="${type}" data-id="${escHtml(it.id)}">${cols.map(c => `<td>${escHtml(c.get(it))}</td>`).join('')}</tr>`).join('') +
+        '</tbody></table>';
+    }
+
+    function renderState(s) {
+      lastState = s;
+      $('userCount').textContent = s.users.length;
+      $('groupCount').textContent = s.groups.length;
+      $('usersTable').innerHTML = table(s.users, [
+        { label: 'userName', get: u => u.userName },
+        { label: 'displayName', get: u => u.displayName ?? '' },
+        { label: 'active', get: u => u.active ?? '' },
+        { label: 'externalId', get: u => u.externalId ?? '' },
+        { label: 'id', get: u => u.id }
+      ], 'users');
+      $('groupsTable').innerHTML = table(s.groups, [
+        { label: 'displayName', get: g => g.displayName },
+        { label: 'members', get: g => (g.members || []).length },
+        { label: 'externalId', get: g => g.externalId ?? '' },
+        { label: 'id', get: g => g.id }
+      ], 'groups');
+    }
+
+    function showDetail(type, id) {
+      const item = lastState && lastState[type].find(x => x.id === id);
+      if (!item) return;
+      $('detailWindow').hidden = false;
+      $('detailTitle').textContent = (type === 'users' ? 'User ' : 'Group ') + id;
+      $('detailBody').textContent = JSON.stringify(item, null, 2);
+    }
+
+    // ── Actions ──
+    async function refresh() {
+      if (!endpoint) return;
+      const { status, json } = await admin('state').catch(e => ({ status: 0, json: { error: e.message } }));
+      if (status === 404) {
+        endpoint = null; saveEndpoint(); applyEndpointUi();
+        setMsg('refreshMsg', 'Endpoint expired or deleted — create a new one.');
+        return;
+      }
+      if (status !== 200) { setMsg('refreshMsg', 'Error: ' + (json.error || status)); return; }
+      setMsg('refreshMsg', 'Updated ' + new Date().toLocaleTimeString());
+      $('bannerStorage').hidden = json.storage !== 'memory';
+      const sig = json.log.length + ':' + (json.log[0] ? json.log[0].id : '') + ':' + json.users.length + ':' + json.groups.length + ':' + JSON.stringify(json.users.map(u => u.meta.lastModified)) + JSON.stringify(json.groups.map(g => g.meta.lastModified));
+      if (sig === lastSig) return;
+      lastSig = sig;
+      renderLog(json.log);
+      renderState(json);
+    }
+
+    function restartTimer() {
+      if (timer) { clearInterval(timer); timer = null; }
+      if ($('autoRefresh').checked && endpoint) {
+        timer = setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      $('bannerLocal').hidden = !/^(localhost|127\.|\[::1\])/.test(location.hostname);
+      loadEndpoint();
+      applyEndpointUi();
+
+      $('btnCreate').addEventListener('click', async () => {
+        $('btnCreate').disabled = true;
+        try {
+          const { status, json } = await admin('create');
+          if (status !== 200) { showError('createError', 'Could not create endpoint: ' + (json.error || status)); return; }
+          $('createError').className = ''; $('createError').textContent = '';
+          endpoint ={ eid: json.eid, token: json.token, tenantUrl: json.tenantUrl };
+          saveEndpoint();
+          $('bannerStorage').hidden = json.storage !== 'memory';
+          lastSig = '';
+          applyEndpointUi();
+          await refresh();
+          restartTimer();
+        } finally { $('btnCreate').disabled = false; }
+      });
+
+      $('btnReset').addEventListener('click', async () => {
+        const { status, json } = await admin('reset');
+        setMsg('endpointMsg', status === 200 ? 'Cleared.' : 'Error: ' + (json.error || status));
+        lastSig = '';
+        await refresh();
+      });
+
+      let deleteArmed = false;
+      $('btnDelete').addEventListener('click', async () => {
+        if (!deleteArmed) {
+          deleteArmed = true;
+          $('btnDelete').textContent = 'Click again to confirm';
+          setTimeout(() => { deleteArmed = false; $('btnDelete').textContent = 'Delete endpoint'; }, 4000);
+          return;
+        }
+        deleteArmed = false;
+        $('btnDelete').textContent = 'Delete endpoint';
+        await admin('delete');
+        endpoint = null; saveEndpoint(); applyEndpointUi(); restartTimer();
+        setMsg('refreshMsg', '');
+      });
+
+      $('btnRefresh').addEventListener('click', refresh);
+      $('autoRefresh').addEventListener('change', restartTimer);
+      $('btnCopyCurl').addEventListener('click', e => copyToClipboard(curlText, e.currentTarget));
+
+      $('logList').addEventListener('toggle', ev => {
+        const id = ev.target.dataset && ev.target.dataset.id;
+        if (!id) return;
+        if (ev.target.open) openLogs.add(id); else openLogs.delete(id);
+      }, true);
+
+      ['usersTable', 'groupsTable'].forEach(id => $(id).addEventListener('click', ev => {
+        const tr = ev.target.closest('tr[data-id]');
+        if (tr) showDetail(tr.dataset.type, tr.dataset.id);
+      }));
+
+      if (endpoint) { refresh(); restartTimer(); }
+    });
+
+  </script>
+</body>
+
+</html>

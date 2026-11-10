@@ -28,6 +28,10 @@ Unlike standard client libraries, this tool **does not hide** intermediate steps
 1.  **SP-Initiated SSO**: Generates a standard (unsigned) `AuthnRequest`, deflates/encodes it with correct `RelayState`, and handles POST Assertion redirection.
 2.  **IdP-Initiated SSO**: Guide mapping details required for single SP execution mapping.
 
+### 🔄 User Sync
+1.  **SCIM 2.0 Server**: Your own SCIM endpoint (`/scim/{id}/v2`). Entra ID *pushes* users and groups to it; the page shows every raw request/response and the resulting state. Backed by Upstash Redis (in-memory fallback locally).
+2.  **Graph API Pull**: Client-credentials token, then *pull* users from Microsoft Graph, scoped by an inclusion filter (Entra property + operator + value).
+
 ---
 
 ## 📂 Project Structure
@@ -44,6 +48,8 @@ OIDC Tester/
 │   ├── oidc-device.html          # Device Flow (polling)
 │   ├── saml-sp.html              # SP-Initiated SSO
 │   ├── saml-idp.html             # IdP-Initiated SSO
+│   ├── scim-server.html          # SCIM 2.0 Server (push)
+│   ├── graph-pull.html           # Graph API Pull (users)
 │   └── assets/                   # Branding 
 │
 ├── api/                          # Node.js Serverless Functions
@@ -52,7 +58,11 @@ OIDC Tester/
 │   ├── oidc-device.js            # Proxy for Device Flow init & polling
 │   ├── saml-request.js           # Builds unsigned AuthnRequest
 │   ├── saml-acs.js               # Assertion Consumer Service endpoint
-│   └── saml-metadata.js          # Outputs SP Metadata XML
+│   ├── saml-metadata.js          # Outputs SP Metadata XML
+│   ├── scim-server.js            # SCIM 2.0 endpoint
+│   ├── scim-admin.js             # SCIM endpoint management
+│   ├── graph-pull.js             # Graph token + users query
+│   └── _lib/                     # Shared helpers (http, Redis/memory store)
 │
 ├── dev-server.js                 # Local Router Helper
 ├── package.json                  # `fast-xml-parser`
@@ -80,6 +90,8 @@ node dev-server.js
 ## ☁️ Deploying to Vercel
 
 Simply connect this Git repository on **Vercel**. All routing inside `vercel.json` maps automatically for `/api` edge execution setups.
+
+**SCIM storage**: connect an **Upstash Redis** database to the project (Vercel → Storage). The standard env vars `KV_REST_API_URL` / `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`) are picked up automatically. The tool only touches keys prefixed `agnft:scim:` (7-day TTL), so the database can be shared with other projects.
 
 ---
 

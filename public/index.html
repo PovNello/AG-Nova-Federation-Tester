@@ -7,7 +7,7 @@
   <title>AGN Federation Tester</title>
   <script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light')</script>
   <meta name="description"
-    content="An educational, provider-agnostic tester for SAML and OIDC federation flows. Inspect raw HTTP requests, tokens, and assertions step by step.">
+    content="An educational, provider-agnostic tester for SAML and OIDC federation flows and SCIM / Microsoft Graph user sync. Inspect raw HTTP requests, tokens, assertions and provisioning calls step by step.">
   <link rel="icon" type="image/png" href="/assets/fav.png">
   <link rel="stylesheet" href="/style.css">
   <style>
@@ -107,6 +107,10 @@
 
     .icon-saml {
       background: #fef3c7;
+    }
+
+    .icon-sync {
+      background: var(--teal-light);
     }
 
     .section-info h2 {
@@ -214,6 +218,35 @@
           <div class="tile-desc">The Identity Provider initiates the session and POSTs a SAMLResponse directly to the
             ACS endpoint.</div>
           <div class="tile-badge badge-saml">ACS ENDPOINT</div>
+        </a>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- User Sync Section -->
+    <div class="protocol-section">
+      <div class="section-header">
+        <div class="protocol-icon icon-sync">🔄</div>
+        <div class="section-info">
+          <h2>User Sync</h2>
+          <p>Identity provisioning — push users with SCIM, pull them with Microsoft Graph</p>
+        </div>
+      </div>
+      <div class="tile-grid">
+        <a href="/scim-server.html" class="tile">
+          <div class="tile-icon">📥</div>
+          <div class="tile-title">SCIM 2.0 Server</div>
+          <div class="tile-desc">Expose a SCIM endpoint and let Entra ID push users and groups to it. Inspect every raw
+            provisioning call.</div>
+          <div class="tile-badge badge-sync">PUSH ENDPOINT</div>
+        </a>
+        <a href="/graph-pull.html" class="tile">
+          <div class="tile-icon">📤</div>
+          <div class="tile-title">Graph API Pull</div>
+          <div class="tile-desc">Get a client-credentials token, then pull users from Microsoft Graph scoped by an
+            inclusion filter on any Entra property.</div>
+          <div class="tile-badge badge-backend">BACKEND PROXY</div>
         </a>
       </div>
     </div>

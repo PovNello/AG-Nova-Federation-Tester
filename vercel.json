@@ -6,6 +6,7 @@
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/saml/acs", "dest": "/api/saml-acs" },
     { "src": "/saml/metadata", "dest": "/api/saml-metadata" },
+    { "src": "/scim/([^/]+)/v2/?(.*)", "dest": "/api/scim-server?eid=$1&path=$2" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }

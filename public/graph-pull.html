@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graph API Pull - AGN Federation Tester</title>
+  <script>if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light')</script>
+  <meta name="description"
+    content="Pull users from Microsoft Graph with a client-credentials token and an inclusion filter on any Entra property. Every raw request and response is shown.">
+  <link rel="icon" type="image/png" href="/assets/fav.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+  <nav class="navbar"></nav>
+
+  <div class="page-container">
+    <div class="breadcrumb">
+      <a href="/">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="/">User Sync</a><span class="breadcrumb-sep">›</span>
+      <span>Graph API Pull</span>
+    </div>
+    <div class="page-header">
+      <h1>Graph API Pull</h1>
+      <p>Pull-based sync: your application authenticates to Microsoft Graph as itself (client credentials) and
+        <em>reads</em> users from Entra ID. Choose which users to import with an inclusion filter.</p>
+    </div>
+
+    <div class="banner banner-info">
+      <span class="banner-icon">⚙️</span>
+      <span>Calls run server-side via <code class="code">/api/graph-pull</code>. The backend only talks to
+        <code class="code">graph.microsoft.com/…/users</code>. It returns the exact request it sent plus the Graph
+        response. Required <strong>Application</strong> permission: <code class="code">User.Read.All</code> (with admin
+        consent).</span>
+    </div>
+
+    <!-- Step 1: Config -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Configuration</div>
+      </div>
+      <p class="step-description">App registration in Entra ID → Overview (tenant + client id) and Certificates &amp;
+        secrets (client secret). The secret is never saved in the browser.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tenant ID (or domain)</label>
+          <input type="text" id="tenant_id" placeholder="00000000-0000-0000-0000-000000000000">
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="client_id" placeholder="your-app-client-id">
+        </div>
+        <div class="form-group">
+          <label>Client Secret</label>
+          <input type="password" id="client_secret" placeholder="your-client-secret" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Graph API version</label>
+          <select id="api_version">
+            <option value="v1.0">v1.0 (stable)</option>
+            <option value="beta">beta</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Token -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Access Token</div>
+      </div>
+      <p class="step-description">Client credentials grant against the Entra token endpoint, with scope
+        <code class="code">https://graph.microsoft.com/.default</code> (= all application permissions granted to the
+        app).</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint</div>
+        <pre class="request-window-body" id="tokenPreview"><span class="comment">// Fill in config above to preview</span></pre>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnToken">Get Access Token</button>
+      </div>
+      <pre class="result-box result-pending" id="tokenResponse">// Awaiting request…</pre>
+      <div id="tokenHint"></div>
+      <div id="decodedTabs"></div>
+    </div>
+
+    <!-- Step 3: Inclusion filter -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Inclusion Filter</div>
+      </div>
+      <p class="step-description">Only users matching <strong>all</strong> conditions are pulled (conditions are joined
+        with <code class="code">and</code>). No condition = all users. Pick an Entra property, an operator and a value.
+        Filters on <code class="code">ne</code>, <code class="code">endsWith</code> and extension attributes use Graph
+        <em>advanced queries</em> — the page then adds <code class="code">ConsistencyLevel: eventual</code> and
+        <code class="code">$count=true</code> for you.</p>
+      <div id="filterRows"></div>
+      <div class="actions" style="margin-top:0.25rem;">
+        <button class="btn btn-secondary btn-sm" id="btnAddRow" type="button">+ Add condition</button>
+      </div>
+      <div class="filter-clause" id="filterClause"></div>
+
+      <div class="form-grid-2" style="margin-top:1.25rem;">
+        <div class="form-group">
+          <label>$select (properties to return)</label>
+          <input type="text" id="select" value="id,displayName,userPrincipalName,mail,accountEnabled">
+          <div class="form-hint">Filtered properties are added automatically. Empty = Graph defaults.</div>
+        </div>
+        <div class="form-group">
+          <label>$top (page size, 1–999)</label>
+          <input type="text" id="top" value="100">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:0.85rem;">
+        <label>Raw $filter override (optional)</label>
+        <input type="text" id="raw_filter" placeholder="department eq 'IT' and accountEnabled eq true">
+        <div class="form-hint">If set, replaces the conditions above.</div>
+      </div>
+      <div style="margin-top:0.85rem;">
+        <label class="check-row"><input type="checkbox" id="count"> Always request <code class="code">$count=true</code>
+          (total of matching users)</label>
+      </div>
+    </div>
+
+    <!-- Step 4: Request preview -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Users Request</div>
+      </div>
+      <p class="step-description">The call that will be made to Graph.</p>
+      <div class="request-window">
+        <div class="request-window-header"><span class="method-badge method-GET">GET</span>Microsoft Graph</div>
+        <pre class="request-window-body" id="reqPreview"></pre>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnPull">Pull Users</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Response -->
+    <div class="step-card" id="step5">
+      <div class="step-header">
+        <div class="step-number">5</div>
+        <div class="step-title">Graph Response</div>
+      </div>
+      <p class="step-description">Exact request sent by the backend, the raw response and the imported users.</p>
+      <pre class="result-box result-pending" id="backendRequest">// Will appear after pulling users</pre>
+      <pre class="result-box result-pending" id="pullStatus">// Awaiting request…</pre>
+      <div class="request-window" id="jsonWindow" hidden>
+        <div class="request-window-header">Raw JSON response (last page)</div>
+        <pre class="request-window-body" id="respJson"></pre>
+      </div>
+      <div class="actions" id="pagingActions" hidden>
+        <button class="btn btn-secondary" id="btnNext">Next page ›</button>
+        <button class="btn btn-secondary" id="btnAll">Load all pages (max 50)</button>
+      </div>
+      <div class="section-label" style="margin-top:1.25rem;" id="usersLabel" hidden>Users (<span id="userTotal">0</span>)
+      </div>
+      <div class="table-wrap" id="usersTable" hidden></div>
+    </div>
+  </div>
+
+  <footer class="footer"></footer>
+  <script src="/shared.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const FIELDS = ['tenant_id', 'client_id', 'api_version', 'select', 'top', 'raw_filter'];
+    const PREFIX = 'graphpull';
+    const FILTER_KEY = PREFIX + ':filters';
+    const CUSTOM = '__custom__';
+    const MAX_PAGES = 50;
+
+    // Entra properties usable in the inclusion filter: [name, type]
+    const PROPS = [
+      ['userPrincipalName', 'string'], ['mail', 'string'], ['displayName', 'string'], ['givenName', 'string'],
+      ['surname', 'string'], ['department', 'string'], ['jobTitle', 'string'], ['companyName', 'string'],
+      ['officeLocation', 'string'], ['city', 'string'], ['state', 'string'], ['country', 'string'],
+      ['usageLocation', 'string'], ['employeeId', 'string'], ['employeeType', 'string'], ['userType', 'string'],
+      ['mailNickname', 'string'], ['onPremisesSamAccountName', 'string'],
+      ['accountEnabled', 'bool'], ['onPremisesSyncEnabled', 'bool']
+    ];
+    const EXT_PROPS = Array.from({ length: 15 }, (_, i) => ['onPremisesExtensionAttributes/extensionAttribute' + (i + 1), 'string']);
+    const PROP_TYPES = Object.fromEntries([...PROPS, ...EXT_PROPS]);
+
+    let accessToken = null;
+    let allUsers = [];
+    let nextLink = null;
+    let lastConsistency = false;
+    let lastColumns = [];
+    let busy = false;
+
+    // ── Filter rows ──
+    function propOptions() {
+      const opt = ([n]) => `<option value="${n}">${n.replace('onPremisesExtensionAttributes/', 'extensionAttribute: ')}</option>`;
+      return `<optgroup label="Properties">${PROPS.map(opt).join('')}</optgroup>` +
+        `<optgroup label="On-prem extension attributes">${EXT_PROPS.map(opt).join('')}</optgroup>` +
+        `<optgroup label="Other"><option value="${CUSTOM}">Custom property…</option></optgroup>`;
+    }
+
+    function syncRow(row) {
+      const prop = row.querySelector('.f-prop').value;
+      const custom = prop === CUSTOM;
+      row.querySelector('.f-custom').hidden = !custom;
+      const type = custom ? 'string' : (PROP_TYPES[prop] || 'string');
+      const opSel = row.querySelector('.f-op');
+      if (opSel.dataset.type !== type) {
+        const cur = opSel.value;
+        const ops = type === 'bool' ? ['eq', 'ne'] : ['eq', 'ne', 'startsWith', 'endsWith'];
+        opSel.innerHTML = ops.map(o => `<option value="${o}">${o}</option>`).join('');
+        opSel.dataset.type = type;
+        if (ops.includes(cur)) opSel.value = cur;
+      }
+      row.querySelector('.f-val').hidden = type === 'bool';
+      row.querySelector('.f-bool').hidden = type !== 'bool';
+    }
+
+    function addFilterRow(s = {}) {
+      const row = document.createElement('div');
+      row.className = 'filter-row';
+      row.innerHTML = `
+        <select class="field f-prop">${propOptions()}</select>
+        <select class="field f-op"></select>
+        <div class="f-val-wrap">
+          <input class="field f-val" type="text" placeholder="value">
+          <select class="field f-bool" hidden><option value="true">true</option><option value="false">false</option></select>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm f-remove" title="Remove condition">✕</button>
+        <input class="field f-custom" type="text" placeholder="custom property name" hidden>`;
+      $('filterRows').appendChild(row);
+      if (s.prop && [...row.querySelector('.f-prop').options].some(o => o.value === s.prop)) row.querySelector('.f-prop').value = s.prop;
+      syncRow(row);
+      if (s.op) row.querySelector('.f-op').value = s.op;
+      if (s.custom) row.querySelector('.f-custom').value = s.custom;
+      if (s.val !== undefined) row.querySelector('.f-val').value = s.val;
+      if (s.bool) row.querySelector('.f-bool').value = s.bool;
+      return row;
+    }
+
+    function readRows() {
+      return [...document.querySelectorAll('#filterRows .filter-row')].map(row => {
+        const sel = row.querySelector('.f-prop').value;
+        const custom = sel === CUSTOM;
+        const prop = custom ? row.querySelector('.f-custom').value.trim() : sel;
+        const type = custom ? 'string' : (PROP_TYPES[sel] || 'string');
+        return {
+          sel, prop, type, custom,
+          customRaw: row.querySelector('.f-custom').value,
+          op: row.querySelector('.f-op').value,
+          val: type === 'bool' ? row.querySelector('.f-bool').value : row.querySelector('.f-val').value,
+          valRaw: row.querySelector('.f-val').value,
+          boolRaw: row.querySelector('.f-bool').value
+        };
+      });
+    }
+
+    function saveFilters() {
+      try {
+        sessionStorage.setItem(FILTER_KEY, JSON.stringify(readRows().map(r => ({ prop: r.sel, custom: r.customRaw, op: r.op, val: r.valRaw, bool: r.boolRaw }))));
+      } catch { /* ignore */ }
+    }
+
+    function loadFilters() {
+      let rows = [];
+      try { rows = JSON.parse(sessionStorage.getItem(FILTER_KEY)) || []; } catch { rows = []; }
+      rows.forEach(addFilterRow);
+    }
+
+    const validProp = p => /^[A-Za-z_][A-Za-z0-9_]*(\/[A-Za-z_][A-Za-z0-9_]*)*$/.test(p);
+    const esc = s => s.replace(/'/g, "''");
+
+    function clause(r) {
+      if (r.type === 'bool') return `${r.prop} ${r.op} ${r.val}`;
+      if (r.op === 'eq' || r.op === 'ne') return `${r.prop} ${r.op} '${esc(r.val)}'`;
+      return `${r.op}(${r.prop},'${esc(r.val)}')`;
+    }
+
+    // Rows that are complete enough to become OData clauses
+    function activeRows() {
+      return readRows().filter(r => r.prop && validProp(r.prop) && (r.type === 'bool' || r.val !== ''));
+    }
+
+    function buildFilter() { return activeRows().map(clause).join(' and '); }
+
+    // ── Query building ──
+    function buildQuery() {
+      const ver = $('api_version').value;
+      const rows = activeRows();
+      const filter = $('raw_filter').value.trim() || rows.map(clause).join(' and ');
+      const advanced = !!filter || $('count').checked;
+
+      const sel = [];
+      $('select').value.split(',').map(s => s.trim()).filter(Boolean).forEach(s => { if (!sel.includes(s)) sel.push(s); });
+      if (sel.length) rows.forEach(r => { const root = r.prop.split('/')[0]; if (!sel.includes(root)) sel.push(root); });
+
+      let top = parseInt($('top').value, 10);
+      if (!(top >= 1)) top = 100;
+      top = Math.min(top, 999);
+
+      const params = [];
+      if (sel.length) params.push('$select=' + encodeURIComponent(sel.join(',')).replace(/%2C/g, ','));
+      if (filter) params.push('$filter=' + encodeURIComponent(filter));
+      params.push('$top=' + top);
+      if (advanced) params.push('$count=true');
+
+      return { url: `https://graph.microsoft.com/${ver}/users?` + params.join('&'), consistency: advanced, filter, select: sel };
+    }
+
+    function updatePreview() {
+      const tenant = $('tenant_id').value || '<tenant_id>';
+      const cid = $('client_id').value || '<client_id>';
+      $('tokenPreview').textContent =
+        `POST https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token\nContent-Type: application/x-www-form-urlencoded\n\n` +
+        `grant_type=client_credentials\n&client_id=${cid}\n&client_secret=***\n&scope=${encodeURIComponent('https://graph.microsoft.com/.default')}`;
+
+      const q = buildQuery();
+      let text = `GET ${q.url}\nAuthorization: Bearer <access_token>\nAccept: application/json`;
+      if (q.consistency) text += '\nConsistencyLevel: eventual';
+      $('reqPreview').textContent = text;
+
+      const rows = readRows();
+      const bad = rows.filter(r => r.custom && r.prop && !validProp(r.prop));
+      let info = q.filter ? `<strong>$filter</strong> = <span class="code">${escHtml(q.filter)}</span>` : '<span class="comment">No filter — all users will be pulled.</span>';
+      if (bad.length) info += `<br><span class="text-danger">Ignored invalid custom property: ${escHtml(bad.map(b => b.prop).join(', '))}</span>`;
+      else if (rows.length > activeRows().length) info += '<br><span class="comment">Incomplete conditions (empty value or property) are ignored.</span>';
+      $('filterClause').innerHTML = info;
+    }
+
+    function onFilterChange() { saveFilters(); updatePreview(); }
+
+    // ── Step 2: token ──
+    async function doToken() {
+      const tenant_id = $('tenant_id').value.trim();
+      const client_id = $('client_id').value.trim();
+      const client_secret = $('client_secret').value;
+      if (!tenant_id || !client_id || !client_secret) {
+        showError('tokenResponse', 'Please fill in Tenant ID, Client ID and Client Secret.'); return;
+      }
+      showPending('tokenResponse', 'Calling /api/graph-pull…');
+      $('tokenHint').innerHTML = '';
+      $('decodedTabs').innerHTML = '';
+      accessToken = null;
+      try {
+        const resp = await fetch('/api/graph-pull', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'token', tenant_id, client_id, client_secret })
+        });
+        const result = await resp.json();
+        if (result.error) { showError('tokenResponse', result.error); return; }
+        const data = result.responseBody;
+        if (result.responseStatus !== 200 || !data || !data.access_token) {
+          showError('tokenResponse', `HTTP ${result.responseStatus}\n` + (typeof data === 'object' ? JSON.stringify(data, null, 2) : data));
+          return;
+        }
+        accessToken = data.access_token;
+        showSuccess('tokenResponse', `HTTP ${result.responseStatus}\n` + JSON.stringify({ ...data, access_token: truncateToken(data.access_token) }, null, 2));
+
+        const decoded = decodeJwt(accessToken);
+        const roles = (decoded && decoded.payload && Array.isArray(decoded.payload.roles)) ? decoded.payload.roles : [];
+        const ok = roles.some(r => ['User.Read.All', 'User.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'].includes(r));
+        $('tokenHint').innerHTML = ok
+          ? `<div class="banner banner-success" style="margin:0.75rem 0 0;"><span class="banner-icon">✅</span><span>Token <code class="code">roles</code>: ${escHtml(roles.join(', '))}</span></div>`
+          : `<div class="banner banner-warning" style="margin:0.75rem 0 0;"><span class="banner-icon">⚠️</span><span>No user-read application role in the token (<code class="code">roles</code>: ${escHtml(roles.join(', ') || 'none')}). Add <strong>User.Read.All</strong> (Application) and grant admin consent, then request a new token.</span></div>`;
+        renderTokenTabs('decodedTabs', { access_token: accessToken });
+      } catch (e) { showError('tokenResponse', 'Fetch error: ' + e.message); }
+    }
+
+    // ── Step 5: pulling users ──
+    function fmtRequest(r) {
+      return `${r.method} ${r.url}\n` + Object.entries(r.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
+    }
+
+    function cell(v) {
+      if (v === null || v === undefined) return '';
+      if (Array.isArray(v)) return v.join(', ');
+      if (typeof v === 'object') return JSON.stringify(v);
+      return String(v);
+    }
+
+    function renderTable() {
+      const cols = lastColumns.length ? lastColumns : ['id', 'displayName', 'userPrincipalName', 'mail'];
+      $('usersLabel').hidden = false;
+      $('usersTable').hidden = false;
+      $('userTotal').textContent = allUsers.length;
+      $('usersTable').innerHTML = allUsers.length
+        ? `<table class="data-table"><thead><tr>${cols.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr></thead><tbody>` +
+          allUsers.map(u => `<tr>${cols.map(c => `<td>${escHtml(cell(u[c]))}</td>`).join('')}</tr>`).join('') + '</tbody></table>'
+        : '<div class="table-empty">No users matched.</div>';
+    }
+
+    // One call to the backend. Returns true when Graph answered 2xx.
+    async function fetchPage(url, append) {
+      const resp = await fetch('/api/graph-pull', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'query', access_token: accessToken, url, consistency: lastConsistency })
+      });
+      const result = await resp.json();
+      if (result.error) { showError('pullStatus', result.error); return false; }
+
+      $('backendRequest').className = 'result-box result-success';
+      $('backendRequest').textContent = fmtRequest(result.requestSent);
+
+      const body = result.responseBody;
+      const good = result.responseStatus >= 200 && result.responseStatus < 300;
+      const hdrs = Object.entries(result.responseHeaders || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
+      $('jsonWindow').hidden = false;
+      let json = typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body);
+      if (json.length > 200000) json = json.slice(0, 200000) + '\n… [truncated for display]';
+      $('respJson').textContent = `HTTP ${result.responseStatus}\n${hdrs}\n\n${json}`;
+
+      if (!good) {
+        const msg = body && body.error ? `${body.error.code}: ${body.error.message}` : 'Request failed';
+        showError('pullStatus', `HTTP ${result.responseStatus} — ${msg}`);
+        nextLink = null;
+        return false;
+      }
+
+      const page = Array.isArray(body.value) ? body.value : [];
+      allUsers = append ? allUsers.concat(page) : page;
+      nextLink = body['@odata.nextLink'] || null;
+      const count = body['@odata.count'];
+      showSuccess('pullStatus', `HTTP ${result.responseStatus} — ${page.length} user(s) in this page, ${allUsers.length} loaded` +
+        (count !== undefined ? `, ${count} match the filter` : '') + (nextLink ? ' — more pages available' : ' — end of results'));
+      renderTable();
+      return true;
+    }
+
+    function setBusy(b) {
+      busy = b;
+      ['btnPull', 'btnNext', 'btnAll'].forEach(id => { $(id).disabled = b; });
+    }
+
+    function updatePaging() { $('pagingActions').hidden = !nextLink; }
+
+    async function pullFirst() {
+      if (busy) return;
+      if (!accessToken) { showError('pullStatus', 'Get an access token first (Step 2).'); $('step5').scrollIntoView(); return; }
+      const q = buildQuery();
+      lastConsistency = q.consistency;
+      lastColumns = q.select;
+      allUsers = [];
+      showPending('pullStatus', 'Calling /api/graph-pull…');
+      setBusy(true);
+      try { await fetchPage(q.url, false); }
+      catch (e) { showError('pullStatus', 'Fetch error: ' + e.message); }
+      setBusy(false);
+      updatePaging();
+      setTimeout(() => $('step5').scrollIntoView({ behavior: 'smooth' }), 300);
+    }
+
+    async function pullNext() {
+      if (busy || !nextLink) return;
+      setBusy(true);
+      try { await fetchPage(nextLink, true); }
+      catch (e) { showError('pullStatus', 'Fetch error: ' + e.message); }
+      setBusy(false);
+      updatePaging();
+    }
+
+    async function pullAll() {
+      if (busy || !nextLink) return;
+      setBusy(true);
+      let pages = 0;
+      try {
+        while (nextLink && pages < MAX_PAGES) {
+          pages++;
+          showPending('pullStatus', `Loading page ${pages} (${allUsers.length} users so far)…`);
+          if (!await fetchPage(nextLink, true)) break;
+        }
+        if (nextLink) showSuccess('pullStatus', `Stopped after ${MAX_PAGES} pages (${allUsers.length} users). Use "Next page" to continue.`);
+      } catch (e) { showError('pullStatus', 'Fetch error: ' + e.message); }
+      setBusy(false);
+      updatePaging();
+    }
+
+    window.addEventListener('load', () => {
+      loadConfig(FIELDS, PREFIX);
+      loadFilters();
+      attachAutoSave(FIELDS, PREFIX, updatePreview);
+      $('count').addEventListener('change', updatePreview);
+
+      const rows = $('filterRows');
+      rows.addEventListener('change', ev => { const row = ev.target.closest('.filter-row'); if (row) syncRow(row); onFilterChange(); });
+      rows.addEventListener('input', onFilterChange);
+      rows.addEventListener('click', ev => {
+        if (ev.target.closest('.f-remove')) { ev.target.closest('.filter-row').remove(); onFilterChange(); }
+      });
+      $('btnAddRow').addEventListener('click', () => { addFilterRow(); onFilterChange(); });
+      ['tenant_id', 'client_id'].forEach(id => $(id).addEventListener('input', updatePreview));
+
+      $('btnToken').addEventListener('click', doToken);
+      $('btnPull').addEventListener('click', pullFirst);
+      $('btnNext').addEventListener('click', pullNext);
+      $('btnAll').addEventListener('click', pullAll);
+      updatePreview();
+    });
+  </script>
+</body>
+
+</html>

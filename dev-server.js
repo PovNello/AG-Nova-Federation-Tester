@@ -55,11 +55,17 @@ const server = http.createServer(async (req, res) => {
     return require('./api/saml-metadata')(req, res);
   }
 
+  // Route /scim/{endpointId}/v2/* (SCIM 2.0 server; mirrors the vercel.json route)
+  if (/^\/scim\/[^/]+\/v2(\/|$)/.test(pathname)) {
+    return require('./api/scim-server')(req, res);
+  }
+
   // Route /api/*
   if (pathname.startsWith('/api/')) {
     const name = pathname.replace('/api/', '').replace(/\/$/, '');
     const modPath = path.join(__dirname, 'api', name + '.js');
-    if (fs.existsSync(modPath)) {
+    // only plain function names (no "_lib/..." helpers, no path tricks)
+    if (/^[\w-]+$/.test(name) && fs.existsSync(modPath)) {
       return require(modPath)(req, res);
     }
     res.statusCode = 404;

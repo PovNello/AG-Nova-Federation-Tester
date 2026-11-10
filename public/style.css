@@ -200,6 +200,9 @@ body { display: flex; flex-direction: column; font-family: 'IBM Plex Mono', mono
 }
 .method-GET { background: #1a4a35; color: #70c99a; }
 .method-POST { background: #1a2e55; color: #7aabf5; }
+.method-PUT { background: #4a3a14; color: #e8c46a; }
+.method-PATCH { background: #3a2a55; color: #b99af0; }
+.method-DELETE { background: #55201c; color: #f59a92; }
 .request-window-body {
   background: var(--code-bg); color: var(--code-text);
   padding: 0.85rem 1rem; font-family: 'IBM Plex Mono', monospace;
@@ -310,6 +313,7 @@ body { display: flex; flex-direction: column; font-family: 'IBM Plex Mono', mono
 .badge-browser { background: var(--teal-light); color: var(--teal-dark); border: 1px solid #b5d4d0; }
 .badge-backend { background: var(--accent-light); color: var(--accent-dark); border: 1px solid #f5c99a; }
 .badge-saml { background: var(--cream); color: #6a5a40; border: 1px solid #cfc8b8; }
+.badge-sync { background: var(--teal-light); color: var(--teal-dark); border: 1px solid var(--teal); }
 
 /* ── Misc ── */
 .divider { height: 1px; background: var(--border); margin: 2.5rem 0; }
@@ -381,6 +385,56 @@ html { scroll-padding-top: 80px; }
   width: 16px;
   height: 16px;
 }
+
+/* ── Standalone form controls (selects, inline inputs, textareas) ── */
+.field, .form-group select, .form-group textarea {
+  width: 100%; padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.875rem; color: var(--text);
+  background: var(--bg); transition: border-color .12s ease, box-shadow .12s ease;
+}
+.field:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(223,123,53,.18);
+}
+.field::placeholder { color: var(--text-faint); }
+.form-hint { font-size: 0.75rem; color: var(--text-faint); margin-top: 0.15rem; }
+.form-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
+
+/* ── Inclusion filter rows (Graph pull) ── */
+.filter-row { display: grid; grid-template-columns: 1.4fr 0.6fr 1.4fr auto; gap: 0.5rem; margin-bottom: 0.5rem; align-items: start; }
+.filter-row .f-custom { grid-column: 1 / 2; }
+@media (max-width: 680px) { .filter-row { grid-template-columns: 1fr 1fr; } .filter-row .f-prop, .filter-row .f-val-wrap { grid-column: 1 / -1; } }
+.filter-clause { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; word-break: break-all; }
+
+/* ── Data tables ── */
+.table-wrap { overflow-x: auto; margin-top: 0.75rem; border: 1px solid var(--border); max-height: 420px; overflow-y: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.data-table th { position: sticky; top: 0; text-align: left; background: var(--bg); color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+.data-table td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--border); word-break: break-all; vertical-align: top; }
+.data-table tr.clickable { cursor: pointer; }
+.data-table tr.clickable:hover td { background: var(--accent-light); }
+.table-empty { padding: 1rem; color: var(--text-faint); font-style: italic; font-size: 0.82rem; }
+
+/* ── Request log entries (SCIM) ── */
+.log-list { margin-top: 0.75rem; max-height: 640px; overflow-y: auto; border: 1px solid var(--border); }
+.log-entry { border-bottom: 1px solid var(--border); background: var(--surface); }
+.log-entry summary { cursor: pointer; padding: 0.5rem 0.8rem; display: flex; gap: 0.6rem; align-items: center; font-size: 0.8rem; list-style: none; flex-wrap: wrap; }
+.log-entry summary::-webkit-details-marker { display: none; }
+.log-entry summary:hover { background: var(--bg); }
+.log-entry .method-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; font-weight: 700; font-family: monospace; }
+.log-url { word-break: break-all; flex: 1; min-width: 160px; }
+.log-time { color: var(--text-faint); font-size: 0.72rem; }
+.status-pill { font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.4rem; }
+.status-2xx { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border); }
+.status-4xx { background: var(--yellow-bg); color: var(--yellow-text); border: 1px solid var(--yellow-border); }
+.status-5xx { background: var(--red-bg); color: var(--red-text); border: 1px solid var(--red-border); }
+.log-body { padding: 0 0.8rem 0.8rem; }
+.log-body .request-window { margin-top: 0.5rem; }
+
+.check-row { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--text-muted); cursor: pointer; }
+.steps-list { margin: 0 0 0 1.2rem; font-size: 0.875rem; color: var(--text-muted); line-height: 1.8; }
+.steps-list strong { color: var(--text); }
 
 input:disabled {
   background: var(--cream) !important;
