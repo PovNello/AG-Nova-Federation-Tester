@@ -28,6 +28,16 @@
       </p>
     </div>
 
+    <div class="banner banner-warning" id="bannerLocal" hidden>
+      <span class="banner-icon">⚠️</span>
+      <span><strong>Localhost detected:</strong> Entra ID cannot reach your local machine. Deploy to Vercel or use a tunnel (e.g. ngrok) to test real provisioning from Entra. You can still test locally using curl.</span>
+    </div>
+
+    <div class="banner banner-warning" id="bannerStorage" hidden>
+      <span class="banner-icon">⚠️</span>
+      <span><strong>In-memory storage:</strong> Running with ephemeral in-memory storage fallback. On Vercel, requests may hit different serverless instances. Connect Upstash Redis (<code class="code">KV_REST_API_URL</code>) for persistent state.</span>
+    </div>
+
     <!-- Step 0: Overview -->
     <div class="step-card">
       <div class="step-header">
@@ -303,7 +313,7 @@
       }
       if (status !== 200) { setMsg('refreshMsg', 'Error: ' + (json.error || status)); return; }
       setMsg('refreshMsg', 'Updated ' + new Date().toLocaleTimeString());
-      $('bannerStorage').hidden = json.storage !== 'memory';
+      if ($('bannerStorage')) $('bannerStorage').hidden = json.storage !== 'memory';
       const sig = json.log.length + ':' + (json.log[0] ? json.log[0].id : '') + ':' + json.users.length + ':' + json.groups.length + ':' + JSON.stringify(json.users.map(u => u.meta.lastModified)) + JSON.stringify(json.groups.map(g => g.meta.lastModified));
       if (sig === lastSig) return;
       lastSig = sig;
@@ -319,7 +329,7 @@
     }
 
     window.addEventListener('load', () => {
-      $('bannerLocal').hidden = !/^(localhost|127\.|\[::1\])/.test(location.hostname);
+      if ($('bannerLocal')) $('bannerLocal').hidden = !/^(localhost|127\.|\[::1\])/.test(location.hostname);
       loadEndpoint();
       applyEndpointUi();
 
@@ -331,7 +341,7 @@
           $('createError').className = ''; $('createError').textContent = '';
           endpoint = { eid: json.eid, token: json.token, tenantUrl: json.tenantUrl };
           saveEndpoint();
-          $('bannerStorage').hidden = json.storage !== 'memory';
+          if ($('bannerStorage')) $('bannerStorage').hidden = json.storage !== 'memory';
           lastSig = '';
           applyEndpointUi();
           await refresh();
