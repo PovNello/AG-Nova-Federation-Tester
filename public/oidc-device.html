@@ -67,45 +67,95 @@
     </div>
     <div class="page-header">
       <h1>Device Authorization Flow</h1>
-      <p>RFC 8628 — Optimized for devices with restricted input capabilities. The device displays a code, and the user
-        approves it on another device.</p>
+      <p>OAuth 2.0 Device Authorization Grant (RFC 8628) — designed for <strong>input-constrained or browserless devices</strong>
+        (such as Smart TVs, game consoles, IoT hardware, and terminal CLI tools like <code class="code">az</code> or <code class="code">gh</code>).
+        The device displays a short verification code, and the user approves the sign-in from a secondary device (phone or PC).</p>
     </div>
 
     <div class="banner banner-info">
       <span class="banner-icon">📱</span>
-      <span>All token requests are proxied via <code class="code">/api/oidc-device</code> to ensure CORS compatibility
-        and to show you the exact backend-to-IdP interaction.</span>
+      <span><strong>Cross-Device Decoupling:</strong> Because limited-input hardware cannot comfortably host full web browsers or handle complex MFA,
+        authentication is delegated to a smartphone or computer. All requests are proxied via <code class="code">/api/oidc-device</code>
+        to ensure CORS compliance and expose the raw wire protocol.</span>
     </div>
 
-    <!-- Step 0: Config -->
+    <!-- Step 0: Overview -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">0</div>
-        <div class="step-title">Configuration</div>
+        <div class="step-title">How the Device Authorization Flow Works (RFC 8628)</div>
       </div>
-      <p class="step-description">Set your OIDC endpoints. The <strong>Device Authorization Endpoint</strong> is where
-        we request the user code.</p>
+      <p class="step-description">
+        The Device Flow coordinates authentication across two separate devices connected to the same identity provider:
+      </p>
+
+      <ol class="steps-list">
+        <li>
+          <strong>Device Initialization (<code class="code">POST /device/code</code>):</strong>
+          The input-constrained device makes a direct HTTP POST to the IdP's Device Authorization endpoint requesting an authorization session.
+          The IdP returns:
+          <br>• <code class="code">user_code</code>: A short, human-friendly code (e.g., <code class="code">WDJB-HGKL</code>).
+          <br>• <code class="code">device_code</code>: A long, high-entropy secret token known only to the device.
+          <br>• <code class="code">verification_uri</code>: The web portal URL where the user will authorize the request.
+          <br>• <code class="code">interval</code>: The mandatory polling interval (typically 5 seconds).
+        </li>
+        <li>
+          <strong>User Action on Secondary Device:</strong>
+          The device displays the <code class="code">user_code</code> on-screen and instructs the user to open
+          <code class="code">verification_uri</code> on their phone or laptop. The user logs in with their full browser, completing passwords, passkeys, and MFA.
+        </li>
+        <li>
+          <strong>Device Background Polling (<code class="code">POST /token</code>):</strong>
+          While the user is typing the code on their phone, the device polls the token endpoint at the designated interval, presenting
+          <code class="code">grant_type=urn:ietf:params:oauth:grant-type:device_code</code> and its private <code class="code">device_code</code>.
+        </li>
+        <li>
+          <strong>Protocol Polling States:</strong>
+          <br>• <code class="code">authorization_pending</code> (HTTP 400): The user has not finished approving yet. The device continues polling.
+          <br>• <code class="code">slow_down</code> (HTTP 400): The device is polling too frequently. The client must increase its interval by +5 seconds.
+          <br>• <code class="code">expired_token</code> (HTTP 400): The user took longer than <code class="code">expires_in</code> (typically 15 mins).
+        </li>
+        <li>
+          <strong>Instant Token Issuance:</strong>
+          The moment the user clicks "Approve" on their phone, the next poll request succeeds immediately with HTTP 200, delivering
+          the user's <code class="code">id_token</code>, <code class="code">access_token</code>, and <code class="code">refresh_token</code> to the device.
+        </li>
+      </ol>
+    </div>
+
+    <!-- Step 1: Config -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Device &amp; IdP Configuration</div>
+      </div>
+      <p class="step-description">Enter your OIDC endpoints and client ID. For public clients, leave the client secret empty.</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Device Authorization Endpoint</label>
           <input type="text" id="device_auth_endpoint" placeholder="https://login.example.com/oauth2/device/authorize">
-          <p class="label-muted" style="margin-top: 0.4rem; font-size: 0.75rem;">MS Example: <code style="color: var(--teal); cursor: pointer;" onclick="document.getElementById('device_auth_endpoint').value=this.textContent">https://login.microsoftonline.com/2e8bbadb-1f5b-4c2e-a190-9c7d558a12b6/oauth2/v2.0/devicecode</code></p>
+          <div class="form-hint">The IdP endpoint that issues the <code class="code">user_code</code> and <code class="code">device_code</code>.</div>
+          <p class="label-muted" style="margin-top: 0.4rem; font-size: 0.75rem;">MS Example: <code style="color: var(--teal); cursor: pointer;" onclick="document.getElementById('device_auth_endpoint').value=this.textContent">https://login.microsoftonline.com/common/oauth2/v2.0/devicecode</code></p>
         </div>
         <div class="form-group">
           <label>Token Endpoint</label>
           <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+          <div class="form-hint">The standard token endpoint polled by the device to receive tokens.</div>
         </div>
         <div class="form-group">
           <label>Client ID</label>
           <input type="text" id="client_id" placeholder="your-client-id">
+          <div class="form-hint">The application ID (configured in Entra ID / IdP to allow public client device flows).</div>
         </div>
         <div class="form-group">
-          <label>Client Secret (Optional, if app is not public client enabled)</label>
-          <input type="password" id="client_secret" placeholder="your-client-secret (if confidential client)">
+          <label>Client Secret (Optional)</label>
+          <input type="password" id="client_secret" placeholder="your-client-secret (optional)">
+          <div class="form-hint">Only required if your app registration is configured as a confidential client.</div>
         </div>
         <div class="form-group">
           <label>Scopes</label>
           <input type="text" id="scopes" value="openid profile email">
+          <div class="form-hint"><code class="code">openid</code> is required for user identity tokens.</div>
         </div>
       </div>
       <div class="actions">
@@ -113,14 +163,13 @@
       </div>
     </div>
 
-    <!-- Step 1: Request Device Code -->
+    <!-- Step 2: Request Device Code -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">1</div>
-        <div class="step-title">Request Device & User Codes</div>
+        <div class="step-number">2</div>
+        <div class="step-title">Request Device &amp; User Codes</div>
       </div>
-      <p class="step-description">The "device" makes a POST request to start the flow. The IdP returns a
-        <strong>user_code</strong> and a <strong>verification_uri</strong>.</p>
+      <p class="step-description">The device initiates the flow by requesting a device code and human user code from the IdP.</p>
       <button class="btn btn-primary" onclick="requestDeviceCode()">Execute Request</button>
 
       <div style="margin-top:1rem;">
@@ -138,13 +187,13 @@
       </div>
     </div>
 
-    <!-- Step 2: User Action -->
-    <div class="step-card" id="step2" style="display: none;">
+    <!-- Step 3: User Action -->
+    <div class="step-card" id="step3" style="display: none;">
       <div class="step-header">
-        <div class="step-number">2</div>
-        <div class="step-title">User Approval Required</div>
+        <div class="step-number">3</div>
+        <div class="step-title">User Approval on Secondary Device</div>
       </div>
-      <p class="step-description">Display these to the user. They must visit the URL and enter the code below.</p>
+      <p class="step-description">Display this code to the user. They must navigate to the verification URL on their phone or computer and enter the code:</p>
 
       <div class="device-code-display" id="displayUserCode">XXXX-XXXX</div>
 
@@ -158,14 +207,13 @@
       </div>
     </div>
 
-    <!-- Step 3: Polling for Token -->
-    <div class="step-card" id="step3" style="display: none;">
+    <!-- Step 4: Polling for Token -->
+    <div class="step-card" id="step4" style="display: none;">
       <div class="step-header">
-        <div class="step-number">3</div>
-        <div class="step-title">Token Polling</div>
+        <div class="step-number">4</div>
+        <div class="step-title">Device Token Polling (Background Loop)</div>
       </div>
-      <p class="step-description">The device repeatedly polls the token endpoint using the <strong>device_code</strong>
-        until the user approves the request.</p>
+      <p class="step-description">The device polls the token endpoint using the <code class="code">device_code</code> until approval is granted.</p>
 
       <div class="poll-status" id="pollStatusUl">
         <div class="spinner" id="pollSpinner" style="display:none;"></div>
@@ -179,7 +227,7 @@
       </div>
 
       <div style="margin-top:1rem;">
-        <p class="label-muted">Latest Polling Request & Response</p>
+        <p class="label-muted">Latest Polling Request &amp; Response</p>
         <div class="request-window">
           <div class="request-window-header">POLLING LOG</div>
           <pre class="request-window-body"
@@ -188,13 +236,13 @@
       </div>
     </div>
 
-    <!-- Step 4: Token Result -->
-    <div class="step-card" id="step4" style="display: none;">
+    <!-- Step 5: Token Result -->
+    <div class="step-card" id="step5" style="display: none;">
       <div class="step-header">
-        <div class="step-number">4</div>
-        <div class="step-title">Tokens Received & Decoded</div>
+        <div class="step-number">5</div>
+        <div class="step-title">Tokens Received &amp; Decoded</div>
       </div>
-      <p class="step-description">Success! The user approved the request and we received the OIDC tokens.</p>
+      <p class="step-description">Success! The user approved the authorization request on their secondary device.</p>
 
       <div id="decodedTabs">
         <!-- Decoded tokens go here -->
@@ -252,15 +300,15 @@
         const data = result.responseBody;
         showSuccess('deviceAuthResponse', JSON.stringify(data, null, 2));
 
-        // Setup Step 2 & 3
+        // Setup Step 3 & 4
         currentDeviceCode = data.device_code;
         document.getElementById('displayUserCode').textContent = data.user_code;
         document.getElementById('displayVerificationUri').textContent = data.verification_uri;
         document.getElementById('displayVerificationUri').href = data.verification_uri;
 
-        document.getElementById('step2').style.display = 'block';
         document.getElementById('step3').style.display = 'block';
-        document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('step4').style.display = 'block';
+        document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
 
         // Default interval or 5 seconds
         window.currentInterval = (data.interval || 5) * 1000;
@@ -340,7 +388,7 @@
 
     function handleSuccess(data) {
       document.getElementById('pollStatusText').textContent = 'Success! Tokens received.';
-      document.getElementById('step4').style.display = 'block';
+      document.getElementById('step5').style.display = 'block';
 
       renderTokenTabs('decodedTabs', {
         id_token: data.id_token,
@@ -348,7 +396,7 @@
         refresh_token: data.refresh_token
       });
 
-      document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('step5').scrollIntoView({ behavior: 'smooth' });
     }
 
     function copyUserCode(e) {

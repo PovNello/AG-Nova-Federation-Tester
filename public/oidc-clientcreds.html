@@ -23,40 +23,80 @@
     </div>
     <div class="page-header">
       <h1>Client Credentials Grant</h1>
-      <p>Machine-to-machine flow — no user involved. The client authenticates directly with its credentials to obtain an
-        access token.</p>
+      <p>Machine-to-machine (M2M) authorization (RFC 6749 §4.4). There is <strong>no human user</strong> and <strong>no browser redirect</strong>.
+        The client application authenticates directly with the identity provider using its own credentials to obtain an access token.</p>
     </div>
 
     <div class="banner banner-info">
       <span class="banner-icon">⚙️</span>
-      <span>This entire flow runs server-side via <code class="code">/api/client-credentials</code>. The backend makes
-        the token request and returns the exact HTTP request it sent plus the IdP response.</span>
+      <span><strong>Automated Daemon Execution:</strong> Ideal for backend microservices, scheduled cron jobs, ETL pipelines, and API integrations.
+        Because client secrets cannot be safely kept in client-side code, this flow runs strictly server-side via our backend proxy
+        (<code class="code">/api/client-credentials</code>).</span>
+    </div>
+
+    <!-- Step 0: Overview -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">0</div>
+        <div class="step-title">How Client Credentials Grant Works</div>
+      </div>
+      <p class="step-description">
+        Unlike user-centric flows that require an authorization code dance, the client credentials grant is a streamlined, single-legged protocol:
+      </p>
+
+      <ol class="steps-list">
+        <li>
+          <strong>Autonomous Machine Authentication:</strong>
+          The background service operates under its own identity rather than delegating on behalf of an end user. There are no login prompts, MFA gates, or browser redirects.
+        </li>
+        <li>
+          <strong>Direct HTTP POST to Token Endpoint:</strong>
+          The client sends a single <code class="code">POST</code> to the IdP's token endpoint with
+          <code class="code">grant_type=client_credentials</code>, <code class="code">client_id</code>,
+          <code class="code">client_secret</code>, and the desired <code class="code">scope</code>.
+        </li>
+        <li>
+          <strong>Credential &amp; Permission Verification:</strong>
+          The IdP verifies the client secret and inspects which application roles or API scopes have been granted to this client registration by a directory administrator.
+        </li>
+        <li>
+          <strong>Access Token Issuance:</strong>
+          The IdP returns an HTTP 200 containing an <code class="code">access_token</code> (typically valid for 1 hour).
+        </li>
+        <li>
+          <strong>Why There is No ID Token or Refresh Token:</strong>
+          An <code class="code">id_token</code> asserts the identity of a human who logged in; because no user is present, an ID token is not issued. Similarly, refresh tokens are not provided because the machine client can simply request a fresh access token whenever needed using its stored secret.
+        </li>
+      </ol>
     </div>
 
     <!-- Step 1: Config -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">1</div>
-        <div class="step-title">Configuration</div>
+        <div class="step-title">Application Configuration</div>
       </div>
-      <p class="step-description">No redirect URI or user interaction needed. Just the token endpoint and client
-        credentials.</p>
+      <p class="step-description">Enter your machine client credentials. No redirect URI or user interaction is required.</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Token Endpoint URL</label>
           <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+          <div class="form-hint">The IdP OAuth 2.0 token URL where the client presents its credentials.</div>
         </div>
         <div class="form-group">
           <label>Client ID</label>
           <input type="text" id="client_id" placeholder="your-client-id">
+          <div class="form-hint">The unique application ID assigned by your identity provider.</div>
         </div>
         <div class="form-group">
           <label>Client Secret</label>
           <input type="password" id="client_secret" placeholder="your-client-secret">
+          <div class="form-hint">The application secret. Transmitted only to our backend proxy and never stored.</div>
         </div>
         <div class="form-group">
-          <label>Scope (optional)</label>
+          <label>Scope (Target Resource)</label>
           <input type="text" id="scope" placeholder="api://your-app/.default">
+          <div class="form-hint">Specifies the resource or permissions requested (e.g. <code class="code">https://graph.microsoft.com/.default</code> for Entra ID).</div>
         </div>
       </div>
     </div>
@@ -67,9 +107,9 @@
         <div class="step-number">2</div>
         <div class="step-title">Token Request Preview</div>
       </div>
-      <p class="step-description">This is the HTTP POST that will be sent to the token endpoint. With <strong>client
-          credentials</strong>, the client proves its identity using its <code class="code">client_secret</code> — no
-        user authorization step needed.</p>
+      <p class="step-description">
+        This is the raw HTTP POST that will be sent to the token endpoint. Notice the form-urlencoded parameters proving the application's identity.
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint</div>
         <pre class="request-window-body"
@@ -86,8 +126,9 @@
         <div class="step-number">3</div>
         <div class="step-title">Exact Request Sent by Backend</div>
       </div>
-      <p class="step-description">The backend confirms what it actually sent, so you can verify it matches the preview
-        exactly.</p>
+      <p class="step-description">
+        The backend confirms the exact HTTP POST headers and body sent over the wire to the IdP.
+      </p>
       <pre class="result-box result-pending" id="backendRequest">// Will appear after executing the request</pre>
     </div>
 
@@ -97,8 +138,9 @@
         <div class="step-number">4</div>
         <div class="step-title">IdP Token Response</div>
       </div>
-      <p class="step-description">The IdP returns an <code class="code">access_token</code>. Unlike user flows, there is
-        typically no <code class="code">id_token</code> in client credentials responses.</p>
+      <p class="step-description">
+        The IdP returns a JSON payload containing the <code class="code">access_token</code>, its token type (<code class="code">Bearer</code>), and lifetime in seconds (<code class="code">expires_in</code>).
+      </p>
       <pre class="result-box result-pending" id="tokenResponse">// Awaiting request…</pre>
     </div>
 
@@ -106,9 +148,11 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">5</div>
-        <div class="step-title">Token Decoding</div>
+        <div class="step-title">Token Decoding &amp; Claims Inspection</div>
       </div>
-      <p class="step-description">Explore the contents of the returned tokens. Use the tabs to switch between them.</p>
+      <p class="step-description">
+        Explore the claims inside the access token. Notice that the <code class="code">sub</code> (subject) refers to the client application itself, and the <code class="code">roles</code> claim reflects the application permissions approved by the tenant admin.
+      </p>
       <div id="decodedTabs">
         <span class="comment">// Decoded tokens will appear here after request execution</span>
       </div>

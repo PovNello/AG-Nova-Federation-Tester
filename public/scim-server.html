@@ -23,37 +23,88 @@
     </div>
     <div class="page-header">
       <h1>SCIM 2.0 Server</h1>
-      <p>Provisioning is <strong>push</strong>: the identity provider (Entra ID) calls <em>your</em> SCIM endpoint to
-        create, update and delete users and groups. This page is that endpoint — and shows you every call it receives.
+      <p>Automated <strong>push-based</strong> identity provisioning (RFC 7643 &amp; RFC 7644). The identity provider
+        (Entra ID, Okta, etc.) monitors employee lifecycle changes and pushes user/group events to <em>your</em> SCIM
+        endpoint in real time. This page acts as that target service provider and exposes every incoming raw payload.
       </p>
+    </div>
+
+    <div class="banner banner-info">
+      <span class="banner-icon">💡</span>
+      <span><strong>Educational Architecture:</strong> In standard SCIM, software hides the HTTP calls behind SDKs. Here,
+        this page runs a full SCIM 2.0 compliant server. You can see the discovery handshakes, pre-flight queries,
+        creation payloads, and PATCH operations exactly as the identity provider transmits them.</span>
     </div>
 
     <div class="banner banner-warning" id="bannerLocal" hidden>
       <span class="banner-icon">⚠️</span>
-      <span><strong>Localhost detected:</strong> Entra ID cannot reach your local machine. Deploy to Vercel or use a tunnel (e.g. ngrok) to test real provisioning from Entra. You can still test locally using curl.</span>
+      <span><strong>Localhost detected:</strong> Entra ID cannot reach your local machine directly. Deploy this project to
+        Vercel or use a reverse proxy tunnel (such as ngrok or Cloudflare Tunnel) to receive real provisioning calls from
+        Entra ID. You can still test locally using the curl example below.</span>
     </div>
 
     <div class="banner banner-warning" id="bannerStorage" hidden>
       <span class="banner-icon">⚠️</span>
-      <span><strong>In-memory storage:</strong> Running with ephemeral in-memory storage fallback. On Vercel, requests may hit different serverless instances. Connect Upstash Redis (<code class="code">KV_REST_API_URL</code>) for persistent state.</span>
+      <span><strong>In-memory storage:</strong> Running with ephemeral in-memory storage fallback. On Vercel, requests may
+        hit different serverless instances. Connect an Upstash Redis database (<code class="code">KV_REST_API_URL</code>)
+        in your Vercel project storage tab for shared persistent state.</span>
     </div>
 
     <!-- Step 0: Overview -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">0</div>
-        <div class="step-title">How it works</div>
+        <div class="step-title">How SCIM Push Provisioning Works</div>
       </div>
       <p class="step-description">
-        <span class="code">Entra ID</span> → <span class="code">GET /Users?filter=userName eq "…"</span> (does the user
-        exist?) → <span class="code">POST /Users</span> (create) → <span class="code">PATCH /Users/{id}</span>
-        (changes) → <span class="code">DELETE /Users/{id}</span> (deprovision). Groups work the same way via
-        <span class="code">/Groups</span> and <code class="code">members</code> operations.
+        Unlike SAML or OIDC (which authenticate users at login time), SCIM handles <strong>identity lifecycle management</strong>
+        in the background: accounts are provisioned before users ever attempt to log in, and deprovisioned immediately when they leave.
+        Here is the standard protocol sequence:
       </p>
-      <p class="step-description" style="margin-bottom:0;">Requests are authenticated with a bearer
-        <strong>Secret Token</strong>. Data is kept per endpoint for 7 days and only the last 200 requests are logged.
-        Passwords sent by the IdP are masked in the log and never stored.
-      </p>
+      
+      <ol class="steps-list">
+        <li>
+          <strong>Discovery &amp; Feature Handshake:</strong>
+          When setting up provisioning, the IdP sends <code class="code">GET /ServiceProviderConfig</code>,
+          <code class="code">GET /Schemas</code>, and <code class="code">GET /ResourceTypes</code> to discover which capabilities
+          the server supports (e.g., authentication schemes, maximum filter results, bulk limits, and PATCH support).
+        </li>
+        <li>
+          <strong>Pre-flight Existence Check:</strong>
+          Before creating an account, the IdP queries <code class="code">GET /Users?filter=userName eq "john@example.com"</code>.
+          If the user does not exist (<code class="code">totalResults: 0</code>), it moves to creation. If the user already exists,
+          the IdP captures the server's <code class="code">id</code> to synchronize attributes rather than producing a duplicate.
+        </li>
+        <li>
+          <strong>User Provisioning:</strong>
+          The IdP issues <code class="code">POST /Users</code> with the standardized SCIM JSON payload (names, emails, active status,
+          and optional enterprise extensions like department or manager). The server creates the identity and returns
+          <code class="code">HTTP 201 Created</code> with a server-generated unique <code class="code">id</code>.
+        </li>
+        <li>
+          <strong>Incremental Updates (Delta Sync):</strong>
+          When an employee's title, department, or status changes, Entra avoids full-object replaces. Instead, it sends a
+          <code class="code">PATCH /Users/{id}</code> containing fine-grained <code class="code">Operations</code>
+          (e.g., <code class="code">replace: {"title": "Staff Engineer"}</code>).
+        </li>
+        <li>
+          <strong>Group &amp; Membership Synchronization:</strong>
+          Groups are managed via <code class="code">POST /Groups</code>, and members are added or removed dynamically using
+          <code class="code">PATCH /Groups/{id}</code> by referencing each user's SCIM <code class="code">id</code>.
+        </li>
+        <li>
+          <strong>Deprovisioning (Lifecycle Termination):</strong>
+          When an account is disabled or unassigned in Entra, the IdP typically performs a soft-delete first by sending
+          <code class="code">PATCH /Users/{id}</code> with <code class="code">active: false</code>. If hard deletion is configured,
+          it subsequently sends <code class="code">DELETE /Users/{id}</code>.
+        </li>
+      </ol>
+
+      <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: var(--bg); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text-muted);">
+        🔒 <strong>Authentication &amp; Security:</strong> Every request is authenticated using a Bearer token in the
+        <code class="code">Authorization: Bearer &lt;token&gt;</code> header. Passwords sent during creation are masked in the
+        audit log and never written to persistent storage.
+      </div>
     </div>
 
     <!-- Step 1: Endpoint -->
@@ -63,14 +114,20 @@
         <div class="step-title">Your SCIM Endpoint</div>
       </div>
       <div id="noEndpoint">
-        <p class="step-description">Create a private endpoint. You get a unique Tenant URL and Secret Token to paste
-          into the identity provider.</p>
+        <p class="step-description">
+          Generate an isolated, private SCIM 2.0 server instance. The generator provisions a unique endpoint identifier (EID)
+          and an unguessable 256-bit cryptographic bearer token.
+        </p>
         <div class="actions" style="margin-top:0;">
           <button class="btn btn-primary" id="btnCreate">Create Endpoint</button>
         </div>
         <div id="createError"></div>
       </div>
       <div id="hasEndpoint" hidden>
+        <p class="step-description">
+          Copy these credentials into your identity provider (e.g. Entra ID Enterprise Application Provisioning settings).
+          Requests sent to this URL with this Secret Token will be routed to your private serverless partition.
+        </p>
         <div class="form-grid">
           <div class="form-group">
             <label>Tenant URL</label>
@@ -85,6 +142,7 @@
                 </svg>
               </button>
             </div>
+            <div class="form-hint">Base URL where the SCIM resources (<code class="code">/Users</code>, <code class="code">/Groups</code>) reside.</div>
           </div>
           <div class="form-group">
             <label>Secret Token</label>
@@ -99,7 +157,7 @@
                 </svg>
               </button>
             </div>
-            <div class="form-hint">Stored in this browser (localStorage) so the page survives reloads.</div>
+            <div class="form-hint">Stored in your browser (<code class="code">localStorage</code>) so this session survives page reloads.</div>
           </div>
         </div>
         <div class="actions">
@@ -114,23 +172,37 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">2</div>
-        <div class="step-title">Connect Entra ID</div>
+        <div class="step-title">Connect Entra ID (or Test via curl)</div>
       </div>
+      <p class="step-description">
+        Configure an Enterprise Application in Microsoft Entra to push identities to your new endpoint:
+      </p>
       <ol class="steps-list">
-        <li><strong>Entra admin center → Enterprise applications → New application → Create your own
-            application</strong>
-          (non-gallery).</li>
-        <li>Open it → <strong>Provisioning → Get started</strong> → Provisioning Mode: <strong>Automatic</strong>.</li>
-        <li><strong>Admin Credentials</strong>: paste the Tenant URL and Secret Token above →
-          <strong>Test Connection</strong>. You should see a <code class="code">GET /Users?filter=…</code> in the log
-          below.
+        <li>
+          <strong>Create Enterprise App:</strong> In Entra admin center &rarr; <em>Enterprise applications</em> &rarr;
+          <em>New application</em> &rarr; <em>Create your own application</em> (select <em>"Integrate any other application you don't find in the gallery (Non-gallery)"</em>).
         </li>
-        <li><strong>Mappings</strong>: review the user / group attribute mappings.</li>
-        <li><strong>Users and groups</strong>: assign users / groups to the app.</li>
-        <li><strong>Provision on demand</strong> pushes one user right away; <strong>Start provisioning</strong> runs
-          the cycle (about every 40 minutes).</li>
+        <li>
+          <strong>Configure Provisioning:</strong> Open the app &rarr; <em>Provisioning</em> &rarr; <em>Get started</em>.
+          Set Provisioning Mode to <strong>Automatic</strong>.
+        </li>
+        <li>
+          <strong>Authorize Endpoint:</strong> Expand <em>Admin Credentials</em>, paste the <strong>Tenant URL</strong> and
+          <strong>Secret Token</strong> from Step 1, then click <strong>Test Connection</strong>. Notice in Step 3 below that
+          Entra immediately executes a test query (<code class="code">GET /Users?filter=...</code>) to verify reachability.
+        </li>
+        <li>
+          <strong>Assign Users &amp; Groups:</strong> Under <em>Users and groups</em>, assign test accounts you wish to provision.
+        </li>
+        <li>
+          <strong>Run Provisioning:</strong> Use <strong>Provision on demand</strong> to immediately push a single user through
+          Entra's evaluation pipeline, or click <strong>Start provisioning</strong> to initiate scheduled background cycles (runs every ~40 minutes).
+        </li>
       </ol>
-      <p class="step-description" style="margin-top:1rem;">No Entra at hand? Fire a request yourself:</p>
+      <p class="step-description" style="margin-top:1rem;">
+        <strong>Manual Testing:</strong> If you don't have access to an Entra tenant right now, execute this curl command in your terminal
+        to simulate an identity provider pushing a newly created user:
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>curl example</div>
         <pre class="request-window-body" id="curlExample"><span class="comment">// Create an endpoint first</span></pre>
@@ -144,10 +216,12 @@
     <div class="step-card" id="step3">
       <div class="step-header">
         <div class="step-number">3</div>
-        <div class="step-title">Received Requests</div>
+        <div class="step-title">Received Requests (Audit Log)</div>
       </div>
-      <p class="step-description">Every call the identity provider makes, newest first. Click an entry to see the raw
-        request and the response we returned.</p>
+      <p class="step-description">
+        Real-time audit log of all inbound SCIM requests received by your endpoint (newest first).
+        Click any request row to inspect the exact HTTP headers, payload schemas, and response status returned by the server.
+      </p>
       <div class="actions" style="margin-top:0;align-items:center;">
         <button class="btn btn-secondary btn-sm" id="btnRefresh">↻ Refresh</button>
         <label class="check-row"><input type="checkbox" id="autoRefresh" checked> Auto-refresh (5s)</label>
@@ -162,10 +236,14 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">4</div>
-        <div class="step-title">Provisioned State</div>
+        <div class="step-title">Provisioned State (Target Database)</div>
       </div>
-      <p class="step-description">What the identity provider has created so far. Click a row to see the stored SCIM
-        resource.</p>
+      <p class="step-description">
+        This view represents the target application's local identity database. As Entra ID processes lifecycle events,
+        the server maintains the correlation between the IdP's source directory object ID (<code class="code">externalId</code>)
+        and this Service Provider's internal primary key (<code class="code">id</code>).
+        Click any user or group row to view its complete SCIM 2.0 JSON document.
+      </p>
       <div class="section-label">Users (<span id="userCount">0</span>)</div>
       <div class="table-wrap" id="usersTable">
         <div class="table-empty">No users.</div>

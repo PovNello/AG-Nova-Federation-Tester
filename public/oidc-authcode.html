@@ -23,54 +23,107 @@
     </div>
     <div class="page-header">
       <h1>Authorization Code + Client Secret</h1>
-      <p>Confidential client flow — the token exchange uses a client secret. The secret is sent to our backend proxy
-        per-request and never stored.</p>
+      <p>The standard OIDC flow for <strong>confidential clients</strong> (traditional server-rendered web applications such as
+        Node.js, Python, .NET, Java, or Next.js server components). The client uses a private <code class="code">client_secret</code>
+        stored securely on the backend server to prove its identity during token redemption.</p>
     </div>
 
     <div class="banner banner-info">
-      <span class="banner-icon">⚙️</span>
-      <span>The <strong>token exchange</strong> (Step 4) is proxied through <code
-          class="code">/api/token-exchange</code> so the client secret is kept out of browser headers/logs. The exact
-        request the backend makes is returned and shown below.</span>
+      <span class="banner-icon">🔒</span>
+      <span><strong>Server-to-Server Security:</strong> The front-channel (browser) handles user interaction and obtains a temporary
+        authorization code. The critical <strong>token exchange</strong> is executed server-to-server via our backend proxy
+        (<code class="code">/api/token-exchange</code>) so your <code class="code">client_secret</code> never touches client-side
+        browser code or network inspection tools.</span>
     </div>
 
-    <!-- Step 0: Config -->
+    <!-- Step 0: Overview -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">0</div>
-        <div class="step-title">Configuration</div>
+        <div class="step-title">How Authorization Code Flow Works (Confidential Clients)</div>
       </div>
-      <p class="step-description">Enter your IdP details. The client secret is used only for the token exchange and is
-        never stored server-side.</p>
+      <p class="step-description">
+        Unlike public clients (SPAs), confidential web applications possess a private backend server. This architecture splits
+        the flow cleanly into two distinct communication channels:
+      </p>
+
+      <ol class="steps-list">
+        <li>
+          <strong>Front-Channel User Redirection (<code class="code">GET /authorize</code>):</strong>
+          The user clicks "Sign In" in your application. The browser redirects to the IdP's login portal with
+          <code class="code">response_type=code</code>, <code class="code">client_id</code>, and a cryptographic
+          <code class="code">state</code> token. The user enters credentials, performs MFA, and grants requested permissions.
+        </li>
+        <li>
+          <strong>Authorization Code Handover:</strong>
+          Upon successful authentication, the IdP redirects the user's browser back to the application's backend
+          <code class="code">redirect_uri</code>, passing an ephemeral authorization <code class="code">code</code> in the query string.
+          This code is single-use and expires in minutes.
+        </li>
+        <li>
+          <strong>Back-Channel Direct Token Exchange (<code class="code">POST /token</code>):</strong>
+          Your backend web application intercepts the incoming code and initiates a direct, machine-to-machine HTTPS POST to the IdP's
+          token endpoint, authenticating itself with its private <code class="code">client_secret</code>.
+        </li>
+        <li>
+          <strong>Token Security &amp; Session Creation:</strong>
+          Because tokens are delivered directly to your backend server over a TLS-encrypted back-channel, the browser never sees the
+          access or refresh tokens. Your server creates an HTTP-only, secure session cookie for the user, rendering the flow immune to
+          browser XSS token-theft attacks.
+        </li>
+        <li>
+          <strong>Token Decoding &amp; Claims:</strong>
+          The application validates the cryptographic signature of the <code class="code">id_token</code> and extracts user profile claims
+          (<code class="code">sub</code>, <code class="code">email</code>, <code class="code">name</code>) to initialize the local user session.
+        </li>
+      </ol>
+    </div>
+
+    <!-- Step 1: Config -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Client &amp; IdP Configuration</div>
+      </div>
+      <p class="step-description">
+        Configure your confidential application credentials. The client secret is transmitted strictly to our serverless
+        proxy (<code class="code">/api/token-exchange</code>) to execute the token POST and is never saved in persistent storage.
+      </p>
       <div class="form-grid">
         <div class="form-group">
           <label>Authorization Endpoint URL</label>
           <input type="text" id="auth_endpoint" placeholder="https://login.example.com/oauth2/authorize">
+          <div class="form-hint">The IdP user login URL where the browser initiates the authentication dance.</div>
         </div>
         <div class="form-group">
           <label>Token Endpoint URL</label>
           <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+          <div class="form-hint">The IdP back-channel REST endpoint where the backend redeems the authorization code.</div>
         </div>
         <div class="form-group">
           <label>Client ID</label>
           <input type="text" id="client_id" placeholder="your-client-id">
+          <div class="form-hint">The Application ID registered with the IdP as a Web / Confidential application.</div>
         </div>
         <div class="form-group">
           <label>Client Secret</label>
           <input type="password" id="client_secret" placeholder="your-client-secret">
+          <div class="form-hint">The private credential proving the authenticity of your application's backend server.</div>
         </div>
         <div class="form-group">
-          <label>Redirect URI (Web)</label>
+          <label>Redirect URI (Web Callback)</label>
           <div class="input-group-copy">
             <input type="text" id="redirect_uri" value="" disabled>
             <button class="btn-copy-inline" onclick="copyToClipboard(document.getElementById('redirect_uri').value, this)" title="Copy Redirect URI">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
           </div>
+          <div class="form-hint">Must match an allowed Redirect URI configured in your IdP application registration.</div>
         </div>
         <div class="form-group">
           <label>Scopes</label>
           <input type="text" id="scopes" value="openid profile email">
+          <div class="form-hint"><code class="code">openid</code> requests the ID Token; <code class="code">profile</code> and <code class="code">email</code> request identity claims.</div>
         </div>
       </div>
       <div class="actions">
@@ -78,14 +131,15 @@
       </div>
     </div>
 
-    <!-- Step 1: Authorization Request -->
+    <!-- Step 2: Authorization Request -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">1</div>
+        <div class="step-number">2</div>
         <div class="step-title">Authorization Request (Browser Redirect)</div>
       </div>
-      <p class="step-description">The browser redirects to the IdP's authorization endpoint. Unlike PKCE, there is no
-        <code class="code">code_challenge</code> — the client secret is the proof of identity at token exchange time.
+      <p class="step-description">
+        The user's browser redirects to the IdP's authorization endpoint. Unlike PKCE, no <code class="code">code_challenge</code>
+        is passed in the URL because the confidential client's private secret will prove its identity directly at the token endpoint.
       </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
@@ -96,14 +150,16 @@
       </div>
     </div>
 
-    <!-- Step 2: Code received -->
-    <div class="step-card" id="step2">
+    <!-- Step 3: Code received -->
+    <div class="step-card" id="step3">
       <div class="step-header">
-        <div class="step-number">2</div>
+        <div class="step-number">3</div>
         <div class="step-title">Authorization Code Received</div>
       </div>
-      <p class="step-description">The IdP redirects back with a short-lived <code class="code">code</code> in the URL
-        query string after user authentication.</p>
+      <p class="step-description">
+        Following user authentication, the IdP redirects back to the <code class="code">redirect_uri</code> with a short-lived
+        <code class="code">code</code> in the query string. In a real application, this code is caught by your server-side route handler.
+      </p>
       <div class="request-window">
         <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
         <pre class="request-window-body"
@@ -111,15 +167,16 @@
       </div>
     </div>
 
-    <!-- Step 3: Token Exchange via backend -->
-    <div class="step-card" id="step3">
+    <!-- Step 4: Token Exchange via backend -->
+    <div class="step-card" id="step4">
       <div class="step-header">
-        <div class="step-number">3</div>
+        <div class="step-number">4</div>
         <div class="step-title">Token Exchange (via Backend Proxy)</div>
       </div>
-      <p class="step-description">Sends the code + client secret to <code class="code">/api/token-exchange</code>. The
-        backend makes the actual <code class="code">POST</code> to the IdP, and returns both the request it sent and the
-        IdP's response.</p>
+      <p class="step-description">
+        Your backend sends the authorization code, client ID, and private client secret in an HTTP POST to the IdP's token endpoint.
+        Our proxy (<code class="code">/api/token-exchange</code>) simulates this server-to-server call and returns the exact HTTP wire log.
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>/api/token-exchange →
           (proxied to IdP)</div>
@@ -146,9 +203,12 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">5</div>
-        <div class="step-title">Token Decoding</div>
+        <div class="step-title">Token Decoding &amp; Claims Inspection</div>
       </div>
-      <p class="step-description">Explore the contents of the returned tokens. Use the tabs to switch between them.</p>
+      <p class="step-description">
+        Explore the contents of the returned tokens. The <code class="code">id_token</code> contains verified user identity claims,
+        while the <code class="code">access_token</code> authorizes server-side API requests.
+      </p>
       <div id="decodedTabs">
         <span class="comment">// Decoded tokens will appear here after exchange</span>
       </div>
@@ -171,7 +231,7 @@
       // Auto-scroll logic
       if (getUrlParam('code')) {
         setTimeout(() => {
-          document.getElementById('step2')?.scrollIntoView({ behavior: 'smooth' });
+          document.getElementById('step3')?.scrollIntoView({ behavior: 'smooth' });
         }, 300);
       }
     });

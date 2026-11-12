@@ -23,45 +23,97 @@
     </div>
     <div class="page-header">
       <h1>Graph API Pull</h1>
-      <p>Pull-based sync: your application authenticates to Microsoft Graph as itself (client credentials) and
-        <em>reads</em> users from Entra ID. Choose which users to import with an inclusion filter.</p>
+      <p>Automated <strong>pull-based</strong> identity synchronization. Your application authenticates directly to the
+        <strong>Microsoft Graph REST API</strong> as itself (machine-to-machine) and imports targeted users from Microsoft Entra ID
+        using OData inclusion filters. This page executes and reveals every step of the query and ingestion pipeline.</p>
     </div>
 
     <div class="banner banner-info">
-      <span class="banner-icon">⚙️</span>
-      <span>Calls run server-side via <code class="code">/api/graph-pull</code>. The backend only talks to
-        <code class="code">graph.microsoft.com/…/users</code>. It returns the exact request it sent plus the Graph
-        response. Required <strong>Application</strong> permission: <code class="code">User.Read.All</code> (with admin
-        consent).</span>
+      <span class="banner-icon">💡</span>
+      <span><strong>Pull vs Push:</strong> While SCIM relies on Entra pushing events into an inbound webhook, Graph Pull makes
+        <strong>outbound HTTPS calls only</strong> (<code class="code">graph.microsoft.com</code>). This makes it ideal for
+        nightly batch imports, on-demand synchronization, or services running behind private corporate firewalls.
+        Required <strong>Application</strong> permission: <code class="code">User.Read.All</code> (with admin consent).</span>
+    </div>
+
+    <!-- Step 0: Overview -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">0</div>
+        <div class="step-title">How Pull-Based Sync Works</div>
+      </div>
+      <p class="step-description">
+        In a pull architecture, the client application controls <em>when</em> to synchronize, <em>which</em> identities to query,
+        and <em>how</em> to ingest them into its local database. Here is the complete protocol lifecycle:
+      </p>
+
+      <ol class="steps-list">
+        <li>
+          <strong>Machine-to-Machine Authentication (OAuth 2.0 Client Credentials):</strong>
+          Because sync jobs run as unattended background services without a human user, the application authenticates directly as
+          <em>itself</em> (RFC 6749 §4.4) against the tenant's token endpoint (<code class="code">/oauth2/v2.0/token</code>)
+          using its registered Application (Client) ID and Client Secret.
+        </li>
+        <li>
+          <strong>Application Scopes &amp; Roles (<code class="code">/.default</code>):</strong>
+          The app requests scope <code class="code">https://graph.microsoft.com/.default</code>. Microsoft Entra returns an Access
+          Token containing tenant-wide <strong>Application Roles</strong> (such as <code class="code">User.Read.All</code>) that have
+          been pre-approved by a directory administrator via Admin Consent.
+        </li>
+        <li>
+          <strong>Targeted Inclusion Filtering (OData):</strong>
+          Enterprise directories often contain thousands of service principals, guest accounts, and shared mailboxes. The application
+          constructs an OData query (<code class="code">$filter</code>) to select only active, relevant employees (e.g.,
+          <code class="code">department eq 'Sales' and accountEnabled eq true</code>).
+        </li>
+        <li>
+          <strong>Graph Advanced Queries (<code class="code">ConsistencyLevel: eventual</code>):</strong>
+          Standard queries are strictly consistent. However, advanced filters (such as <code class="code">ne</code>,
+          <code class="code">endsWith</code>, or searching custom directory extensions) leverage Entra's distributed indexing layer.
+          Microsoft Graph requires passing the <code class="code">ConsistencyLevel: eventual</code> header and <code class="code">$count=true</code>.
+        </li>
+        <li>
+          <strong>Batch Ingestion &amp; Cursor Pagination (<code class="code">@odata.nextLink</code>):</strong>
+          Graph returns matching users in pages (default 100). If more users match, Graph provides an opaque cursor URL
+          (<code class="code">@odata.nextLink</code>). The application loops through these pages to import and reconcile all identities
+          in its local store.
+        </li>
+      </ol>
     </div>
 
     <!-- Step 1: Config -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">1</div>
-        <div class="step-title">Configuration</div>
+        <div class="step-title">Application Configuration</div>
       </div>
-      <p class="step-description">App registration in Entra ID → Overview (tenant + client id) and Certificates &amp;
-        secrets (client secret). The secret is never saved in the browser.</p>
+      <p class="step-description">
+        Obtain credentials from your Microsoft Entra App Registration. These identify and authorize your application to read the directory.
+        Secrets are transmitted only to the local backend proxy to perform the token exchange and are never persisted in the browser.
+      </p>
       <div class="form-grid">
         <div class="form-group">
           <label>Tenant ID (or domain)</label>
           <input type="text" id="tenant_id" placeholder="00000000-0000-0000-0000-000000000000">
+          <div class="form-hint">Directory (tenant) GUID or primary domain (e.g. <code class="code">contoso.onmicrosoft.com</code>).</div>
         </div>
         <div class="form-group">
           <label>Client ID</label>
           <input type="text" id="client_id" placeholder="your-app-client-id">
+          <div class="form-hint">Application (client) ID found on the App Registration Overview page.</div>
         </div>
         <div class="form-group">
           <label>Client Secret</label>
           <input type="password" id="client_secret" placeholder="your-client-secret" autocomplete="off">
+          <div class="form-hint">Use the secret <strong>Value</strong> (visible only upon creation), <em>not</em> the <strong>Secret ID</strong> (GUID).</div>
         </div>
         <div class="form-group">
           <label>Graph API version</label>
           <select id="api_version">
-            <option value="v1.0">v1.0 (stable)</option>
-            <option value="beta">beta</option>
+            <option value="v1.0">v1.0 (production stable contract)</option>
+            <option value="beta">beta (includes preview directory attributes)</option>
           </select>
+          <div class="form-hint"><code class="code">v1.0</code> is recommended for production; <code class="code">beta</code> provides preview properties.</div>
         </div>
       </div>
     </div>
@@ -70,11 +122,14 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">2</div>
-        <div class="step-title">Access Token</div>
+        <div class="step-title">OAuth 2.0 Access Token (Client Credentials)</div>
       </div>
-      <p class="step-description">Client credentials grant against the Entra token endpoint, with scope
-        <code class="code">https://graph.microsoft.com/.default</code> (= all application permissions granted to the
-        app).</p>
+      <p class="step-description">
+        Execute a machine-to-machine token exchange against the Entra OAuth2 v2.0 token endpoint.
+        The requested scope <code class="code">https://graph.microsoft.com/.default</code> instructs Entra to include all
+        <strong>Application permissions</strong> statically consented to the app. Inspect the decoded JWT below to verify the
+        <code class="code">roles</code> claim.
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint</div>
         <pre class="request-window-body" id="tokenPreview"><span class="comment">// Fill in config above to preview</span></pre>
@@ -91,13 +146,14 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">3</div>
-        <div class="step-title">Inclusion Filter</div>
+        <div class="step-title">Inclusion Filter (OData Query Builder)</div>
       </div>
-      <p class="step-description">Only users matching <strong>all</strong> conditions are pulled (conditions are joined
-        with <code class="code">and</code>). No condition = all users. Pick an Entra property, an operator and a value.
-        Filters on <code class="code">ne</code>, <code class="code">endsWith</code> and extension attributes use Graph
-        <em>advanced queries</em> — the page then adds <code class="code">ConsistencyLevel: eventual</code> and
-        <code class="code">$count=true</code> for you.</p>
+      <p class="step-description">
+        Define criteria to select which users to import. Multiple conditions are automatically combined using <code class="code">and</code>.
+        If no conditions are set, all directory users will be pulled.
+        Advanced queries (using <code class="code">ne</code>, <code class="code">endsWith</code>, or on-premises extension attributes)
+        automatically attach the required <code class="code">ConsistencyLevel: eventual</code> header.
+      </p>
       <div id="filterRows"></div>
       <div class="actions" style="margin-top:0.25rem;">
         <button class="btn btn-secondary btn-sm" id="btnAddRow" type="button">+ Add condition</button>
@@ -106,23 +162,24 @@
 
       <div class="form-grid-2" style="margin-top:1.25rem;">
         <div class="form-group">
-          <label>$select (properties to return)</label>
+          <label>$select (attribute projection)</label>
           <input type="text" id="select" value="id,displayName,userPrincipalName,mail,accountEnabled">
-          <div class="form-hint">Filtered properties are added automatically. Empty = Graph defaults.</div>
+          <div class="form-hint">Comma-separated attributes. Reduces payload size and latency. Filtered attributes are added automatically.</div>
         </div>
         <div class="form-group">
           <label>$top (page size, 1–999)</label>
           <input type="text" id="top" value="100">
+          <div class="form-hint">Number of user objects returned per HTTP page from Microsoft Graph.</div>
         </div>
       </div>
       <div class="form-group" style="margin-top:0.85rem;">
         <label>Raw $filter override (optional)</label>
         <input type="text" id="raw_filter" placeholder="department eq 'IT' and accountEnabled eq true">
-        <div class="form-hint">If set, replaces the conditions above.</div>
+        <div class="form-hint">If set, overrides the visual condition builder above with raw OData syntax.</div>
       </div>
       <div style="margin-top:0.85rem;">
         <label class="check-row"><input type="checkbox" id="count"> Always request <code class="code">$count=true</code>
-          (total of matching users)</label>
+          (returns the total number of matching directory users)</label>
       </div>
     </div>
 
@@ -130,9 +187,12 @@
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">4</div>
-        <div class="step-title">Users Request</div>
+        <div class="step-title">Microsoft Graph Request Preview</div>
       </div>
-      <p class="step-description">The call that will be made to Graph.</p>
+      <p class="step-description">
+        The exact HTTP GET request that will be sent to the Microsoft Graph REST API. Notice the bearer token authorization,
+        the OData query parameters, and the <code class="code">ConsistencyLevel</code> header.
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Microsoft Graph</div>
         <pre class="request-window-body" id="reqPreview"></pre>
@@ -146,9 +206,12 @@
     <div class="step-card" id="step5">
       <div class="step-header">
         <div class="step-number">5</div>
-        <div class="step-title">Graph Response</div>
+        <div class="step-title">Graph Response &amp; User Ingestion</div>
       </div>
-      <p class="step-description">Exact request sent by the backend, the raw response and the imported users.</p>
+      <p class="step-description">
+        The raw response from Microsoft Graph and the resulting directory user table. In a production sync engine,
+        these user records are reconciled and inserted into the local application database.
+      </p>
       <pre class="result-box result-pending" id="backendRequest">// Will appear after pulling users</pre>
       <pre class="result-box result-pending" id="pullStatus">// Awaiting request…</pre>
       <div class="request-window" id="jsonWindow" hidden>
@@ -336,14 +399,22 @@
     async function doToken() {
       const tenant_id = $('tenant_id').value.trim();
       const client_id = $('client_id').value.trim();
-      const client_secret = $('client_secret').value;
+      const client_secret = $('client_secret').value.trim();
       if (!tenant_id || !client_id || !client_secret) {
         showError('tokenResponse', 'Please fill in Tenant ID, Client ID and Client Secret.'); return;
       }
-      showPending('tokenResponse', 'Calling /api/graph-pull…');
       $('tokenHint').innerHTML = '';
       $('decodedTabs').innerHTML = '';
       accessToken = null;
+
+      // Detect if user pasted a GUID (Entra Secret ID) instead of the actual secret Value
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(client_secret)) {
+        showError('tokenResponse', 'Error: The Client Secret entered matches a GUID format (Secret ID).\n\nIn Microsoft Entra ID, you must supply the secret "Value", NOT the "Secret ID".\nIf the Value is hidden (***), you will need to create a new client secret and copy its Value immediately.');
+        $('tokenHint').innerHTML = `<div class="banner banner-warning" style="margin:0.75rem 0 0;"><span class="banner-icon">⚠️</span><span><strong>Secret ID detected:</strong> You entered a GUID in the Client Secret field. In Entra ID &rarr; App registrations &rarr; <em>Certificates &amp; secrets</em>, copy the <strong>Value</strong> column, not the <strong>Secret ID</strong>. If the Value is masked, create a new secret.</span></div>`;
+        return;
+      }
+
+      showPending('tokenResponse', 'Calling /api/graph-pull…');
       try {
         const resp = await fetch('/api/graph-pull', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -354,6 +425,9 @@
         const data = result.responseBody;
         if (result.responseStatus !== 200 || !data || !data.access_token) {
           showError('tokenResponse', `HTTP ${result.responseStatus}\n` + (typeof data === 'object' ? JSON.stringify(data, null, 2) : data));
+          if (data && data.error_description && data.error_description.includes('AADSTS7000215')) {
+            $('tokenHint').innerHTML = `<div class="banner banner-warning" style="margin:0.75rem 0 0;"><span class="banner-icon">⚠️</span><span><strong>Invalid Client Secret (AADSTS7000215):</strong> Entra ID rejected the secret. Ensure you provided the secret <strong>Value</strong>, not the <strong>Secret ID</strong>.<br>Go to Entra ID &rarr; App registrations &rarr; <em>Certificates &amp; secrets</em>, create a <strong>New client secret</strong>, and copy the <strong>Value</strong> column immediately before leaving the portal.</span></div>`;
+          }
           return;
         }
         accessToken = data.access_token;

@@ -90,36 +90,85 @@
     </div>
     <div class="page-header">
       <h1>Authorization Code + PKCE</h1>
-      <p>Proof Key for Code Exchange — a browser-safe flow with no client secret. Watch every raw HTTP call and
-        cryptographic step.</p>
+      <p>Proof Key for Code Exchange (RFC 7636) — the modern, browser-safe OIDC flow for <strong>public clients</strong>
+        (Single Page Applications and Mobile Apps). No client secret is used; cryptography executed in the browser guarantees that
+        only the client that initiated the request can redeem the authorization code.</p>
     </div>
 
     <div class="banner banner-info">
       <span class="banner-icon">🌐</span>
-      <span>This flow runs entirely in the browser. No backend is involved — the PKCE challenge is generated using the
-        <strong>Web Crypto API</strong>.</span>
+      <span><strong>Pure Browser Execution:</strong> Single Page Applications run in untrusted user environments and cannot securely
+        conceal a secret. PKCE completely deprecates the legacy, insecure Implicit Flow by pairing local cryptographic hashing
+        (via the browser's <strong>Web Crypto API</strong>) with direct CORS calls to the IdP.</span>
     </div>
 
-    <!-- Step 0: Config -->
+    <!-- Step 0: Overview -->
     <div class="step-card">
       <div class="step-header">
         <div class="step-number">0</div>
-        <div class="step-title">Configuration</div>
+        <div class="step-title">How Authorization Code + PKCE Works</div>
       </div>
-      <p class="step-description">Enter your OIDC provider details. Values are saved to sessionStorage and update all
-        displays live.</p>
+      <p class="step-description">
+        PKCE prevents the <em>Authorization Code Interception Attack</em> where a malicious actor or extension snoops the
+        redirect URL to steal the auth code. Here is the step-by-step cryptographic sequence:
+      </p>
+
+      <ol class="steps-list">
+        <li>
+          <strong>Cryptographic Key Generation (Local):</strong>
+          Before contacting the IdP, the browser creates a high-entropy secret string (<code class="code">code_verifier</code>)
+          using <code class="code">crypto.getRandomValues()</code>. It then hashes this verifier using SHA-256 and base64url-encodes
+          the digest to produce the <code class="code">code_challenge</code>. The verifier stays safely in the browser's local memory.
+        </li>
+        <li>
+          <strong>Front-Channel Authorization (<code class="code">GET /authorize</code>):</strong>
+          The browser redirects the user to the IdP's login page, appending <code class="code">response_type=code</code>,
+          <code class="code">code_challenge</code>, and <code class="code">code_challenge_method=S256</code>.
+          The IdP authenticates the user, records the challenge with the session, and prompts for consent.
+        </li>
+        <li>
+          <strong>Authorization Code Redirect:</strong>
+          Upon approval, the IdP redirects back to the registered <code class="code">redirect_uri</code> with an authorization
+          <code class="code">code</code> in the query string. Even if an attacker intercepts this code in browser history, they cannot
+          use it without the unhashed verifier.
+        </li>
+        <li>
+          <strong>Back-Channel Token Exchange (<code class="code">POST /token</code>):</strong>
+          The browser makes a direct HTTP POST (via <code class="code">fetch</code>) to the token endpoint, presenting the
+          <code class="code">code</code> and the original plain <code class="code">code_verifier</code>.
+          The IdP computes <code class="code">SHA256(code_verifier)</code>: if the hash matches the recorded challenge, it confirms
+          the caller is authentic and issues tokens.
+        </li>
+        <li>
+          <strong>Token Reception &amp; Claims:</strong>
+          The IdP returns an <code class="code">id_token</code> (JWT asserting the user's identity) and an <code class="code">access_token</code>
+          (bearer token for API calls).
+        </li>
+      </ol>
+    </div>
+
+    <!-- Step 1: Config -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Client &amp; IdP Configuration</div>
+      </div>
+      <p class="step-description">Enter your OpenID Connect provider details. Values are saved to <code class="code">sessionStorage</code> and update the live request previews.</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Authorization Endpoint URL</label>
           <input type="text" id="auth_endpoint" placeholder="https://login.example.com/oauth2/authorize">
+          <div class="form-hint">The IdP user-facing endpoint where authentication and consent take place.</div>
         </div>
         <div class="form-group">
           <label>Token Endpoint URL</label>
           <input type="text" id="token_endpoint" placeholder="https://login.example.com/oauth2/token">
+          <div class="form-hint">The IdP REST endpoint where authorization codes are exchanged for tokens (must allow CORS).</div>
         </div>
         <div class="form-group">
-          <label>Client ID (SPA)</label>
+          <label>Client ID (SPA / Public Client)</label>
           <input type="text" id="client_id" placeholder="your-client-id">
+          <div class="form-hint">Must be registered as a Public Client / SPA (no client secret required).</div>
         </div>
         <div class="form-group">
           <label>Redirect URI</label>
@@ -129,10 +178,12 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
           </div>
+          <div class="form-hint">Must match exactly one of the Allowed Callback URLs configured in your IdP application.</div>
         </div>
         <div class="form-group">
           <label>Scopes</label>
           <input type="text" id="scopes" value="openid profile email">
+          <div class="form-hint"><code class="code">openid</code> is mandatory to request an ID token; <code class="code">profile</code> and <code class="code">email</code> request user claims.</div>
         </div>
       </div>
       <div class="custom-params-container">
@@ -159,14 +210,17 @@
       </div>
     </div>
 
-    <!-- Step 1: PKCE -->
+    <!-- Step 2: PKCE -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">1</div>
-        <div class="step-title">Generate PKCE Keys</div>
+        <div class="step-number">2</div>
+        <div class="step-title">Generate PKCE Keys (Local Web Crypto)</div>
       </div>
-      <p class="step-description">Generates a cryptographically random <strong>code_verifier</strong> (32 random bytes
-        as hex), then computes the <strong>code_challenge</strong> as SHA-256(code_verifier) base64url-encoded.</p>
+      <p class="step-description">
+        Generates a cryptographically secure random <code class="code">code_verifier</code> (32 random bytes converted to hex, 256 bits of entropy),
+        then computes the <code class="code">code_challenge</code> as <code class="code">BASE64URL(SHA-256(code_verifier))</code>.
+        Also generates a unique <code class="code">state</code> token to guard against Cross-Site Request Forgery (CSRF).
+      </p>
       <button class="btn btn-primary" onclick="doGeneratePkce()">Generate Keys</button>
       <div class="request-window" style="margin-top:0.75rem;">
         <div class="request-window-header">LOCAL CRYPTO · Web Crypto API (SHA-256)</div>
@@ -175,15 +229,16 @@
       </div>
     </div>
 
-    <!-- Step 2: Authorization Request -->
+    <!-- Step 3: Authorization Request -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">2</div>
+        <div class="step-number">3</div>
         <div class="step-title">Authorization Request (Browser Redirect)</div>
       </div>
-      <p class="step-description">The browser is redirected to the IdP's authorization endpoint with the PKCE <code
-          class="code">code_challenge</code>. The IdP authenticates the user and redirects back with an authorization
-        code.</p>
+      <p class="step-description">
+        The user's browser redirects to the IdP's authorization endpoint. Notice how the <code class="code">code_challenge</code>
+        is passed in the query string, while the plain <code class="code">code_verifier</code> remains stored safely in the browser.
+      </p>
       <div id="authRequestDisplay" class="request-window">
         <div class="request-window-header"><span class="method-badge method-GET">GET</span>Browser Redirect</div>
         <pre class="request-window-body"
@@ -194,14 +249,16 @@
       </div>
     </div>
 
-    <!-- Step 3: Auth Code Received -->
-    <div class="step-card" id="step3">
+    <!-- Step 4: Auth Code Received -->
+    <div class="step-card" id="step4">
       <div class="step-header">
-        <div class="step-number">3</div>
+        <div class="step-number">4</div>
         <div class="step-title">Authorization Code Received</div>
       </div>
-      <p class="step-description">After the user authenticates, the IdP redirects back to the <code
-          class="code">redirect_uri</code> with a short-lived <code class="code">code</code> in the query string.</p>
+      <p class="step-description">
+        After successful login and consent, the IdP redirects back to the <code class="code">redirect_uri</code> with a short-lived,
+        single-use <code class="code">code</code> and returns the matching <code class="code">state</code> parameter.
+      </p>
       <div class="request-window">
         <div class="request-window-header">REDIRECT RESPONSE · URL Query Params</div>
         <pre class="request-window-body"
@@ -209,19 +266,21 @@
       </div>
     </div>
 
-    <!-- Step 4: Token Exchange -->
+    <!-- Step 5: Token Exchange -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">4</div>
-        <div class="step-title">Token Exchange (PKCE Verify)</div>
+        <div class="step-number">5</div>
+        <div class="step-title">Token Exchange (PKCE Verification)</div>
       </div>
-      <p class="step-description">The browser POSTs directly to the token endpoint sending the <code
-          class="code">code</code> and <code class="code">code_verifier</code>. The IdP verifies that SHA-256(verifier)
-        == original challenge, then returns tokens.</p>
+      <p class="step-description">
+        The browser sends a direct HTTP POST to the token endpoint containing the <code class="code">code</code> and
+        the plain <code class="code">code_verifier</code>. The IdP verifies that <code class="code">SHA256(code_verifier) == code_challenge</code>,
+        guaranteeing that the entity redeeming the code is the same client that initiated the flow.
+      </p>
       <div class="request-window">
         <div class="request-window-header"><span class="method-badge method-POST">POST</span>Token Endpoint · Fetch API
         </div>
-        <pre class="request-window-body" id="tokenReqDisplay"><span class="comment">// Waiting for step 3…</span></pre>
+        <pre class="request-window-body" id="tokenReqDisplay"><span class="comment">// Waiting for Step 4…</span></pre>
       </div>
       <div class="actions">
         <button class="btn btn-primary" onclick="doExchangeToken()">Execute Token Exchange</button>
@@ -233,13 +292,17 @@
       </div>
     </div>
 
-    <!-- Step 5: Token Decoding -->
+    <!-- Step 6: Token Decoding -->
     <div class="step-card">
       <div class="step-header">
-        <div class="step-number">5</div>
-        <div class="step-title">Token Decoding</div>
+        <div class="step-number">6</div>
+        <div class="step-title">Token Decoding &amp; Claims Inspection</div>
       </div>
-      <p class="step-description">Explore the contents of the returned tokens. Use the tabs to switch between them.</p>
+      <p class="step-description">
+        Explore the contents of the returned tokens. The <code class="code">id_token</code> contains user identity claims
+        (<code class="code">sub</code>, <code class="code">email</code>, <code class="code">name</code>) signed by the IdP.
+        The <code class="code">access_token</code> authorizes calls to downstream protected APIs.
+      </p>
       <div id="decodedTabs">
         <span class="comment">// Decoded tokens will appear here after token exchange</span>
       </div>
@@ -261,7 +324,7 @@
       // Auto-scroll logic
       if (getUrlParam('code')) {
         setTimeout(() => {
-          document.getElementById('step3')?.scrollIntoView({ behavior: 'smooth' });
+          document.getElementById('step4')?.scrollIntoView({ behavior: 'smooth' });
         }, 300);
       }
     });
@@ -340,7 +403,7 @@
       const endpoint = document.getElementById('auth_endpoint').value;
       if (!endpoint) { alert('Please enter the Authorization Endpoint URL.'); return; }
       if (!clientId) { alert('Please enter Client ID.'); return; }
-      if (!challenge) { alert('Please generate PKCE keys first (Step 1).'); return; }
+      if (!challenge) { alert('Please generate PKCE keys first (Step 2).'); return; }
       const redirectUri = document.getElementById('redirect_uri').value;
       const scopes = document.getElementById('scopes').value;
       const customParams = getCustomParams();
@@ -361,7 +424,7 @@
       const clientId = document.getElementById('client_id').value;
       const redirectUri = document.getElementById('redirect_uri').value;
 
-      if (!code) { alert('No authorization code found in URL. Complete Step 2 first.'); return; }
+      if (!code) { alert('No authorization code found in URL. Complete Step 3 first.'); return; }
       if (!verifier) { alert('No code_verifier found. It may have been cleared. Please restart the flow.'); return; }
       if (!endpoint) { alert('Please enter the Token Endpoint URL.'); return; }
 
